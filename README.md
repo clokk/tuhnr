@@ -36,6 +36,37 @@ shipchronicle import --global
 shipchronicle studio --global
 ```
 
+## Global Mode
+
+Global mode lets you explore your entire Claude Code history across all projects in one view.
+
+### Features
+
+- **Project filtering** - Filter commits by project using the dropdown in the header
+- **Project badges** - Each commit shows a color-coded badge indicating which project it belongs to
+- **Unified timeline** - See all your Claude work in one chronological view
+- **Per-project stats** - Dropdown shows commit counts per project
+
+### Usage
+
+```bash
+# First, import all Claude Code projects
+shipchronicle import --global
+
+# Re-import with fresh data (clears existing)
+shipchronicle import --global --clear
+
+# Open the studio in global mode
+shipchronicle studio --global
+```
+
+### How It Works
+
+1. Discovers all Claude Code projects in `~/.claude/projects/`
+2. Parses session files from each project
+3. Tags each cognitive commit with its source project name
+4. Stores everything in a unified database at `~/.shipchronicle/global/`
+
 ## Commands
 
 ### Web Studio (Phase 3)
@@ -126,6 +157,35 @@ The **Cognitive Commit** is the new unit of work. It captures everything between
 2. **Session end** - work done but not committed
 3. **Explicit close** - user manually marks boundary
 
+## Studio Interface
+
+The web studio provides a split-view interface:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Studio: All Claude History  [▼ All Projects]    [Publish]  │
+├────────────────────────┬────────────────────────────────────┤
+│  COMMIT LIST (scroll)  │  DETAIL (fixed header)             │
+│  ┌──────────────────┐  │  ┌──────────────────────────────┐  │
+│  │ 🟣 claudeverse   │  │  │ [abc123] · claudeverse       │  │
+│  │ ☑ [abc123]       │  │  │ "Add auth flow"    [Publish] │  │
+│  │   "Add auth..."  │  │  │ 12 turns · 3 files · Jan 15  │  │
+│  │   12 turns       │  │  ├──────────────────────────────┤  │
+│  ├──────────────────┤  │  │ CONVERSATION (scroll)        │  │
+│  │ 🟢 Soteria       │  │  │ ┌──────────────────────────┐ │  │
+│  │ ☐ [def456]       │  │  │ │ 👤 User message...       │ │  │
+│  │   "Fix bug"      │  │  │ │ 🤖 Assistant response... │ │  │
+│  └──────────────────┘  │  │ └──────────────────────────┘ │  │
+└────────────────────────┴────────────────────────────────────┘
+```
+
+**Features:**
+- Independent scroll for commit list and conversation
+- Fixed header with title, stats, and actions
+- Color-coded project badges (consistent colors per project)
+- Bulk selection and publishing
+- Inline title editing
+
 ## Example Output
 
 ```
@@ -156,9 +216,21 @@ When the daemon is running, it:
 3. **Captures** screenshots of your dev server automatically
 4. **Persists** cognitive commits to SQLite for later retrieval
 
-Data is stored in `~/.shipchronicle/<project-hash>/`:
+Data is stored in:
+- Project mode: `~/.shipchronicle/<project-hash>/`
+- Global mode: `~/.shipchronicle/global/`
+
+Each contains:
 - `data.db` - SQLite database with commits, sessions, turns
 - `screenshots/` - Auto-captured and manual screenshots
+
+## Database Schema
+
+The database uses migrations to evolve the schema:
+
+- **v1**: Base schema (commits, sessions, turns, visuals)
+- **v2**: Curation fields (published, hidden, title, display_order)
+- **v3**: Global mode support (project_name column for filtering)
 
 ## Roadmap
 

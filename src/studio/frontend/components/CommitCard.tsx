@@ -8,6 +8,7 @@ interface CommitCardProps {
   onClick: () => void;
   onToggleCheck: (e: React.MouseEvent) => void;
   thumbnailUrl?: string;
+  showProjectBadge?: boolean;
 }
 
 function formatTime(iso: string): string {
@@ -21,6 +22,30 @@ function formatTime(iso: string): string {
   });
 }
 
+/**
+ * Generate a consistent color for a project name
+ */
+function getProjectColor(name: string): { bg: string; text: string } {
+  // Simple hash to pick from a set of colors
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+
+  const colors = [
+    { bg: "bg-chronicle-purple/20", text: "text-chronicle-purple" },
+    { bg: "bg-blue-500/20", text: "text-blue-400" },
+    { bg: "bg-emerald-500/20", text: "text-emerald-400" },
+    { bg: "bg-orange-500/20", text: "text-orange-400" },
+    { bg: "bg-pink-500/20", text: "text-pink-400" },
+    { bg: "bg-cyan-500/20", text: "text-cyan-400" },
+    { bg: "bg-yellow-500/20", text: "text-yellow-400" },
+    { bg: "bg-indigo-500/20", text: "text-indigo-400" },
+  ];
+
+  return colors[Math.abs(hash) % colors.length];
+}
+
 export default function CommitCard({
   commit,
   isSelected,
@@ -28,10 +53,12 @@ export default function CommitCard({
   onClick,
   onToggleCheck,
   thumbnailUrl,
+  showProjectBadge = false,
 }: CommitCardProps) {
   const hasGitHash = !!commit.gitHash;
   const borderColor = hasGitHash ? "border-chronicle-green" : "border-chronicle-amber";
   const turnCount = commit.turnCount || commit.sessions.reduce((sum, s) => sum + s.turns.length, 0);
+  const projectColor = commit.projectName ? getProjectColor(commit.projectName) : null;
 
   return (
     <div
@@ -70,6 +97,18 @@ export default function CommitCard({
 
         {/* Content */}
         <div className="flex-1 min-w-0">
+          {/* Project badge (when showing all projects) */}
+          {showProjectBadge && commit.projectName && projectColor && (
+            <div className="mb-1">
+              <span
+                className={`inline-block px-2 py-0.5 text-xs font-medium rounded ${projectColor.bg} ${projectColor.text}`}
+                title={`Project: ${commit.projectName}`}
+              >
+                {commit.projectName}
+              </span>
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
             {/* Git hash or status */}
             {commit.gitHash ? (
@@ -113,7 +152,7 @@ export default function CommitCard({
 
           {/* Time */}
           <div className="text-xs text-zinc-600 mt-1">
-            {formatTime(commit.startedAt)}
+            {formatTime(commit.closedAt)}
           </div>
         </div>
       </div>

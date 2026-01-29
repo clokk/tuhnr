@@ -16,13 +16,29 @@ import type {
 
 const DB_FILE = "data.db";
 
+export interface DBOptions {
+  /** If true, use the path directly as storage dir (don't hash it) */
+  rawStoragePath?: boolean;
+}
+
 export class ShipchronicleDB {
   private db: Database.Database;
   private projectPath: string;
 
-  constructor(projectPath: string) {
+  constructor(projectPath: string, options: DBOptions = {}) {
     this.projectPath = projectPath;
-    const storageDir = ensureStorageDir(projectPath);
+
+    // For global mode, the path is already the storage directory
+    let storageDir: string;
+    if (options.rawStoragePath) {
+      storageDir = projectPath;
+      if (!require("fs").existsSync(storageDir)) {
+        require("fs").mkdirSync(storageDir, { recursive: true });
+      }
+    } else {
+      storageDir = ensureStorageDir(projectPath);
+    }
+
     const dbPath = path.join(storageDir, DB_FILE);
 
     this.db = new Database(dbPath);
@@ -74,8 +90,8 @@ export class ShipchronicleDB {
   insertCommit(commit: CognitiveCommit): void {
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO cognitive_commits
-      (id, git_hash, started_at, closed_at, closed_by, parallel, files_read, files_changed, published, hidden, display_order, title)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, git_hash, started_at, closed_at, closed_by, parallel, files_read, files_changed, published, hidden, display_order, title, project_name)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -90,7 +106,8 @@ export class ShipchronicleDB {
       commit.published ? 1 : 0,
       commit.hidden ? 1 : 0,
       commit.displayOrder || 0,
-      commit.title || null
+      commit.title || null,
+      commit.projectName || null
     );
 
     // Insert sessions
@@ -130,7 +147,7 @@ export class ShipchronicleDB {
    */
   getAllCommits(): CognitiveCommit[] {
     const rows = this.db
-      .prepare("SELECT * FROM cognitive_commits ORDER BY started_at DESC")
+      .prepare("SELECT * FROM cognitive_commits ORDER BY closed_at DESC")
       .all() as CommitRow[];
 
     return rows.map((row) => this.rowToCommit(row));
@@ -142,7 +159,7 @@ export class ShipchronicleDB {
   getRecentCommits(limit: number = 10): CognitiveCommit[] {
     const rows = this.db
       .prepare(
-        "SELECT * FROM cognitive_commits ORDER BY started_at DESC LIMIT ?"
+        "SELECT * FROM cognitive_commits ORDER BY closed_at DESC LIMIT ?"
       )
       .all(limit) as CommitRow[];
 
@@ -158,6 +175,34 @@ export class ShipchronicleDB {
       .get() as { count: number };
 
     return row.count;
+  }
+
+  /**
+   * Get distinct project names with commit counts
+   */
+  getDistinctProjects(): { name: string; count: number }[] {
+    const rows = this.db
+      .prepare(`
+        SELECT project_name as name, COUNT(*) as count
+        FROM cognitive_commits
+        WHERE project_name IS NOT NULL
+        GROUP BY project_name
+        ORDER BY count DESC
+      `)
+      .all() as { name: string; count: number }[];
+
+    return rows;
+  }
+
+  /**
+   * Get commits filtered by project name
+   */
+  getCommitsByProject(projectName: string): CognitiveCommit[] {
+    const rows = this.db
+      .prepare("SELECT * FROM cognitive_commits WHERE project_name = ? ORDER BY closed_at DESC")
+      .all(projectName) as CommitRow[];
+
+    return rows.map((row) => this.rowToCommit(row));
   }
 
   /**
@@ -248,6 +293,8 @@ export class ShipchronicleDB {
       published: row.published === 1,
       hidden: row.hidden === 1,
       displayOrder: row.display_order || 0,
+      // Global mode field
+      projectName: row.project_name || undefined,
     };
   }
 
@@ -552,6 +599,8 @@ interface CommitRow {
   hidden: number;
   display_order: number;
   title: string | null;
+  // Global mode field (v3)
+  project_name: string | null;
 }
 
 interface SessionRow {

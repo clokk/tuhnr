@@ -6,14 +6,27 @@ import { Hono } from "hono";
 import { ShipchronicleDB } from "../../storage/db";
 import type { CognitiveCommit } from "../../models/types";
 
-export function createCommitRoutes(projectPath: string): Hono {
-  const app = new Hono();
+interface CommitRouteOptions {
+  global?: boolean;
+}
 
-  // GET /api/commits - List all commits
+export function createCommitRoutes(projectPath: string, options: CommitRouteOptions = {}): Hono {
+  const app = new Hono();
+  const dbOptions = { rawStoragePath: options.global };
+
+  // GET /api/commits - List all commits, optionally filtered by project
   app.get("/", async (c) => {
-    const db = new ShipchronicleDB(projectPath);
+    const db = new ShipchronicleDB(projectPath, dbOptions);
     try {
-      const commits = db.getAllCommits();
+      // Check for project filter
+      const projectFilter = c.req.query("project");
+
+      let commits;
+      if (projectFilter) {
+        commits = db.getCommitsByProject(projectFilter);
+      } else {
+        commits = db.getAllCommits();
+      }
 
       // Get visuals for each commit
       const commitsWithVisuals = commits.map((commit) => {
@@ -34,7 +47,7 @@ export function createCommitRoutes(projectPath: string): Hono {
   // GET /api/commits/:id - Get single commit with full details
   app.get("/:id", async (c) => {
     const id = c.req.param("id");
-    const db = new ShipchronicleDB(projectPath);
+    const db = new ShipchronicleDB(projectPath, dbOptions);
 
     try {
       const commit = db.getCommit(id);
@@ -65,7 +78,7 @@ export function createCommitRoutes(projectPath: string): Hono {
       displayOrder?: number;
     }>();
 
-    const db = new ShipchronicleDB(projectPath);
+    const db = new ShipchronicleDB(projectPath, dbOptions);
 
     try {
       const commit = db.getCommit(id);
@@ -88,7 +101,7 @@ export function createCommitRoutes(projectPath: string): Hono {
   // DELETE /api/commits/:id - Delete commit
   app.delete("/:id", async (c) => {
     const id = c.req.param("id");
-    const db = new ShipchronicleDB(projectPath);
+    const db = new ShipchronicleDB(projectPath, dbOptions);
 
     try {
       const commit = db.getCommit(id);
@@ -117,7 +130,7 @@ export function createCommitRoutes(projectPath: string): Hono {
       return c.json({ error: "No commit IDs provided" }, 400);
     }
 
-    const db = new ShipchronicleDB(projectPath);
+    const db = new ShipchronicleDB(projectPath, dbOptions);
 
     try {
       const updated = db.bulkUpdateCommits(body.ids, body.updates);

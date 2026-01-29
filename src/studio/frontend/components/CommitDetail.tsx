@@ -14,6 +14,29 @@ interface CommitDetailProps {
   onDelete: (id: string) => void;
 }
 
+/**
+ * Generate a consistent color for a project name
+ */
+function getProjectColor(name: string): { bg: string; text: string } {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+
+  const colors = [
+    { bg: "bg-chronicle-purple/20", text: "text-chronicle-purple" },
+    { bg: "bg-blue-500/20", text: "text-blue-400" },
+    { bg: "bg-emerald-500/20", text: "text-emerald-400" },
+    { bg: "bg-orange-500/20", text: "text-orange-400" },
+    { bg: "bg-pink-500/20", text: "text-pink-400" },
+    { bg: "bg-cyan-500/20", text: "text-cyan-400" },
+    { bg: "bg-yellow-500/20", text: "text-yellow-400" },
+    { bg: "bg-indigo-500/20", text: "text-indigo-400" },
+  ];
+
+  return colors[Math.abs(hash) % colors.length];
+}
+
 export default function CommitDetail({
   commitId,
   onUpdate,
@@ -23,7 +46,6 @@ export default function CommitDetail({
   const [loading, setLoading] = useState(true);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState("");
-  const [conversationExpanded, setConversationExpanded] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
@@ -86,15 +108,23 @@ export default function CommitDetail({
   };
 
   const turnCount = commit.sessions.reduce((sum, s) => sum + s.turns.length, 0);
+  const projectColor = commit.projectName ? getProjectColor(commit.projectName) : null;
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
+    <div className="h-full flex flex-col">
+      {/* Fixed Header Section */}
+      <div className="flex-shrink-0 p-6 pb-4 border-b border-zinc-800 bg-panel-alt">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            {/* Git hash */}
-            <div className="flex items-center gap-2 mb-2">
+            {/* Project badge + Git hash */}
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              {commit.projectName && projectColor && (
+                <span
+                  className={`px-2 py-0.5 text-xs font-medium rounded ${projectColor.bg} ${projectColor.text}`}
+                >
+                  {commit.projectName}
+                </span>
+              )}
               {commit.gitHash ? (
                 <span className="font-mono text-chronicle-green">
                   [{commit.gitHash}]
@@ -181,41 +211,37 @@ export default function CommitDetail({
         </div>
       </div>
 
-      {/* Visuals Gallery */}
-      {commit.visuals && commit.visuals.length > 0 && (
-        <div className="mb-6">
-          <h3 className="text-lg font-medium text-white mb-3">Visuals</h3>
-          <VisualGallery visuals={commit.visuals} onDelete={handleVisualDelete} />
-        </div>
-      )}
-
-      {/* Files changed */}
-      {commit.filesChanged.length > 0 && (
-        <div className="mb-6">
-          <h3 className="text-lg font-medium text-white mb-3">Files Changed</h3>
-          <div className="bg-zinc-900 rounded-lg p-4">
-            <ul className="space-y-1">
-              {commit.filesChanged.map((file, i) => (
-                <li key={i} className="font-mono text-sm text-chronicle-amber">
-                  {file}
-                </li>
-              ))}
-            </ul>
+      {/* Scrollable Content Section */}
+      <div className="flex-1 overflow-y-auto p-6 pt-4">
+        {/* Visuals Gallery */}
+        {commit.visuals && commit.visuals.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-lg font-medium text-white mb-3">Visuals</h3>
+            <VisualGallery visuals={commit.visuals} onDelete={handleVisualDelete} />
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Conversation */}
-      <div>
-        <button
-          onClick={() => setConversationExpanded(!conversationExpanded)}
-          className="flex items-center gap-2 text-lg font-medium text-white mb-3 hover:text-chronicle-blue transition-colors"
-        >
-          <span className="text-sm">{conversationExpanded ? "▼" : "▶"}</span>
-          Conversation ({turnCount} turns)
-        </button>
+        {/* Files changed */}
+        {commit.filesChanged.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-lg font-medium text-white mb-3">Files Changed</h3>
+            <div className="bg-zinc-900 rounded-lg p-4">
+              <ul className="space-y-1">
+                {commit.filesChanged.map((file, i) => (
+                  <li key={i} className="font-mono text-sm text-chronicle-amber">
+                    {file}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
 
-        {conversationExpanded && (
+        {/* Conversation */}
+        <div>
+          <h3 className="text-lg font-medium text-white mb-3">
+            Conversation ({turnCount} turns)
+          </h3>
           <div className="space-y-4">
             {commit.sessions.map((session) =>
               session.turns.map((turn) => (
@@ -223,7 +249,7 @@ export default function CommitDetail({
               ))
             )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Delete confirmation modal */}

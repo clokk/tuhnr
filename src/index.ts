@@ -634,7 +634,7 @@ program
       }
 
       // Open database
-      const db = new ShipchronicleDB(storagePath);
+      const db = new ShipchronicleDB(storagePath, { rawStoragePath: options.global });
 
       // Optionally clear existing commits
       if (options.clear) {
@@ -678,9 +678,9 @@ program
             continue;
           }
 
-          // Add project name as title prefix for global mode
-          if (options.global && !commit.title) {
-            commit.title = `[${projectName}]`;
+          // Set project name for global mode
+          if (options.global) {
+            commit.projectName = projectName;
           }
 
           db.insertCommit(commit);

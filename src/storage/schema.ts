@@ -2,7 +2,7 @@
  * SQLite schema definitions for Shipchronicle
  */
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const CREATE_TABLES = `
 -- Cognitive commits (persisted)
@@ -75,6 +75,14 @@ export const MIGRATIONS: { version: number; sql: string }[] = [
       ALTER TABLE cognitive_commits ADD COLUMN hidden INTEGER DEFAULT 0;
       ALTER TABLE cognitive_commits ADD COLUMN display_order INTEGER DEFAULT 0;
       ALTER TABLE cognitive_commits ADD COLUMN title TEXT;
+    `,
+  },
+  {
+    version: 3,
+    sql: `
+      -- Add project_name column for global mode filtering
+      ALTER TABLE cognitive_commits ADD COLUMN project_name TEXT;
+      CREATE INDEX IF NOT EXISTS idx_commits_project ON cognitive_commits(project_name);
     `,
   },
 ];

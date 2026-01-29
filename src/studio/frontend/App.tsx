@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import {
   fetchProject,
+  fetchProjects,
   fetchCommits,
   bulkUpdateCommits,
   type ProjectInfo,
+  type ProjectListItem,
   type CognitiveCommit,
 } from "./api";
 import Header from "./components/Header";
@@ -18,6 +20,11 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Global mode state
+  const [projects, setProjects] = useState<ProjectListItem[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [selectedProject, setSelectedProject] = useState<string | null>(null);
+
   // Load initial data
   useEffect(() => {
     async function load() {
@@ -28,6 +35,13 @@ export default function App() {
         ]);
         setProject(projectData);
         setCommits(commitsData.commits);
+
+        // If global mode, also fetch projects list
+        if (projectData.project.global) {
+          const projectsData = await fetchProjects();
+          setProjects(projectsData.projects);
+          setTotalCount(projectsData.totalCount);
+        }
 
         // Select first commit by default
         if (commitsData.commits.length > 0) {
@@ -41,6 +55,31 @@ export default function App() {
     }
     load();
   }, []);
+
+  // Handle project filter change
+  const handleSelectProject = async (projectName: string | null) => {
+    setSelectedProject(projectName);
+    setLoading(true);
+
+    try {
+      const commitsData = await fetchCommits(projectName || undefined);
+      setCommits(commitsData.commits);
+
+      // Select first commit in filtered list
+      if (commitsData.commits.length > 0) {
+        setSelectedCommitId(commitsData.commits[0].id);
+      } else {
+        setSelectedCommitId(null);
+      }
+
+      // Clear selection when filter changes
+      setSelectedIds(new Set());
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const selectedCommit = commits.find((c) => c.id === selectedCommitId);
 
@@ -60,7 +99,7 @@ export default function App() {
     try {
       await bulkUpdateCommits(Array.from(selectedIds), { published: true });
       // Refresh commits
-      const { commits: updated } = await fetchCommits();
+      const { commits: updated } = await fetchCommits(selectedProject || undefined);
       setCommits(updated);
       setSelectedIds(new Set());
     } catch (err) {
@@ -83,7 +122,11 @@ export default function App() {
     setSelectedIds(new Set(selectedIds));
   };
 
-  if (loading) {
+  const isGlobal = project?.project.global || false;
+  // Show project badges when in global mode and not filtering by a specific project
+  const showProjectBadges = isGlobal && !selectedProject;
+
+  if (loading && !project) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-bg">
         <div className="text-zinc-400">Loading...</div>
@@ -103,9 +146,14 @@ export default function App() {
     <div className="min-h-screen bg-bg flex flex-col">
       <Header
         projectName={project?.project.name || "Unknown Project"}
+        isGlobal={isGlobal}
         stats={project?.stats}
         selectedCount={selectedIds.size}
         onPublishSelected={handlePublishSelected}
+        projects={projects}
+        totalCount={totalCount}
+        selectedProject={selectedProject}
+        onSelectProject={handleSelectProject}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -117,11 +165,12 @@ export default function App() {
             selectedIds={selectedIds}
             onSelectCommit={setSelectedCommitId}
             onToggleSelect={handleToggleSelect}
+            showProjectBadges={showProjectBadges}
           />
         </div>
 
         {/* Right Panel - Commit Detail */}
-        <div className="flex-1 bg-panel-alt overflow-y-auto">
+        <div className="flex-1 bg-panel-alt overflow-hidden">
           {selectedCommit ? (
             <CommitDetail
               commitId={selectedCommit.id}

@@ -51,12 +51,14 @@ export interface CognitiveCommit {
   displayOrder?: number;
   visuals?: Visual[];
   turnCount?: number;
+  projectName?: string;
 }
 
 export interface ProjectInfo {
   project: {
     name: string;
     path: string;
+    global?: boolean;
   };
   stats: {
     commitCount: number;
@@ -68,6 +70,11 @@ export interface ProjectInfo {
   };
 }
 
+export interface ProjectListItem {
+  name: string;
+  count: number;
+}
+
 // Project
 export async function fetchProject(): Promise<ProjectInfo> {
   const res = await fetch(`${API_BASE}/project`);
@@ -75,9 +82,19 @@ export async function fetchProject(): Promise<ProjectInfo> {
   return res.json();
 }
 
+// Projects list (for global mode)
+export async function fetchProjects(): Promise<{ projects: ProjectListItem[]; totalCount: number }> {
+  const res = await fetch(`${API_BASE}/project/projects`);
+  if (!res.ok) throw new Error("Failed to fetch projects");
+  return res.json();
+}
+
 // Commits
-export async function fetchCommits(): Promise<{ commits: CognitiveCommit[] }> {
-  const res = await fetch(`${API_BASE}/commits`);
+export async function fetchCommits(project?: string): Promise<{ commits: CognitiveCommit[] }> {
+  const url = project
+    ? `${API_BASE}/commits?project=${encodeURIComponent(project)}`
+    : `${API_BASE}/commits`;
+  const res = await fetch(url);
   if (!res.ok) throw new Error("Failed to fetch commits");
   return res.json();
 }

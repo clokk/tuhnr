@@ -8,6 +8,7 @@ interface CommitListProps {
   selectedIds: Set<string>;
   onSelectCommit: (id: string) => void;
   onToggleSelect: (id: string) => void;
+  showProjectBadges?: boolean;
 }
 
 export default function CommitList({
@@ -16,6 +17,7 @@ export default function CommitList({
   selectedIds,
   onSelectCommit,
   onToggleSelect,
+  showProjectBadges = false,
 }: CommitListProps) {
   if (commits.length === 0) {
     return (
@@ -45,6 +47,7 @@ export default function CommitList({
               ? getVisualImageUrl(commit.visuals[0].id)
               : undefined
           }
+          showProjectBadge={showProjectBadges}
         />
       ))}
     </div>

@@ -45,6 +45,8 @@ export interface CognitiveCommit {
   published?: boolean;
   hidden?: boolean;
   displayOrder?: number;
+  // Global mode field
+  projectName?: string;
 }
 
 export interface ParseResult {

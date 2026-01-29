@@ -12,10 +12,11 @@ interface ProjectRouteOptions {
 
 export function createProjectRoutes(storagePath: string, options: ProjectRouteOptions = {}): Hono {
   const app = new Hono();
+  const dbOptions = { rawStoragePath: options.global };
 
   // GET /api/project - Get project info and stats
   app.get("/", async (c) => {
-    const db = new ShipchronicleDB(storagePath);
+    const db = new ShipchronicleDB(storagePath, dbOptions);
 
     try {
       const commits = db.getAllCommits();
@@ -64,6 +65,27 @@ export function createProjectRoutes(storagePath: string, options: ProjectRouteOp
           firstDate,
           lastDate,
         },
+      });
+    } finally {
+      db.close();
+    }
+  });
+
+  // GET /api/projects - Get list of distinct projects with counts (global mode only)
+  app.get("/projects", async (c) => {
+    if (!options.global) {
+      return c.json({ projects: [] });
+    }
+
+    const db = new ShipchronicleDB(storagePath, dbOptions);
+
+    try {
+      const projects = db.getDistinctProjects();
+      const totalCount = db.getCommitCount();
+
+      return c.json({
+        projects,
+        totalCount,
       });
     } finally {
       db.close();
