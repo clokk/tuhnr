@@ -56,3 +56,12 @@ export interface ProjectInfo {
   path: string;
   sessionFiles: string[];
 }
+
+export interface Visual {
+  id: string;
+  commitId: string;
+  type: "screenshot" | "video" | "vercel_preview";
+  path: string;
+  capturedAt: string;
+  caption?: string;
+}

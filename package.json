@@ -21,13 +21,17 @@
   "author": "Connor Leisz",
   "license": "MIT",
   "devDependencies": {
+    "@types/better-sqlite3": "^7.0.0",
     "@types/node": "^20.0.0",
     "@types/uuid": "^9.0.0",
     "ts-node": "^10.9.0",
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "better-sqlite3": "^9.0.0",
+    "chokidar": "^3.5.0",
     "commander": "^11.0.0",
+    "puppeteer": "^21.0.0",
     "uuid": "^9.0.0"
   }
 }

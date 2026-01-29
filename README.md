@@ -8,22 +8,67 @@ Parse Claude Code session logs to extract **Cognitive Commits** - the work that 
 
 ```bash
 npm install
+npm run build
 ```
 
-## Usage
+## Quick Start
+
+```bash
+# Initialize shipchronicle for your project
+cd your-project
+shipchronicle init
+
+# Start the watch daemon (monitors Claude sessions in real-time)
+shipchronicle watch
+
+# Check status
+shipchronicle status
+
+# Stop the daemon
+shipchronicle stop
+```
+
+## Commands
+
+### Watch Daemon (Phase 2)
+
+```bash
+# Initialize for a project (auto-detects Claude project path)
+shipchronicle init
+
+# Start watching for Claude sessions (runs in background)
+shipchronicle watch
+
+# Run in foreground with verbose output
+shipchronicle watch --foreground --verbose
+
+# Check daemon status and statistics
+shipchronicle status
+
+# Stop the daemon
+shipchronicle stop
+
+# Manually capture a screenshot
+shipchronicle capture
+
+# Capture specific URL
+shipchronicle capture --url http://localhost:3000
+```
+
+### Parser CLI (Phase 1)
 
 ```bash
 # List discovered Claude projects
-npx ts-node src/index.ts list
+shipchronicle list
 
 # Parse a project
-npx ts-node src/index.ts parse ~/.claude/projects/-Users-you-YourProject/
+shipchronicle parse ~/.claude/projects/-Users-you-YourProject/
 
 # Parse specific session
-npx ts-node src/index.ts parse <path> -s <session-id>
+shipchronicle parse <path> -s <session-id>
 
 # Output formats: pretty (default), json, summary
-npx ts-node src/index.ts parse <path> -o json
+shipchronicle parse <path> -o json
 ```
 
 ## What is a Cognitive Commit?
@@ -62,10 +107,23 @@ The **Cognitive Commit** is the new unit of work. It captures everything between
       Files changed: 11
 ```
 
+## How It Works
+
+When the daemon is running, it:
+
+1. **Monitors** Claude Code session files (`.jsonl`) for changes
+2. **Detects** git commits in the conversation
+3. **Captures** screenshots of your dev server automatically
+4. **Persists** cognitive commits to SQLite for later retrieval
+
+Data is stored in `~/.shipchronicle/<project-hash>/`:
+- `data.db` - SQLite database with commits, sessions, turns
+- `screenshots/` - Auto-captured and manual screenshots
+
 ## Roadmap
 
-- **Phase 1:** Parser CLI (current) ✓
-- **Phase 2:** Watch daemon + auto-capture screenshots
+- **Phase 1:** Parser CLI ✓
+- **Phase 2:** Watch daemon + auto-capture screenshots ✓
 - **Phase 3:** Web studio for curation
 - **Phase 4:** Public viewer at shipchronicle.com
 
