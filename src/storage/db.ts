@@ -74,8 +74,8 @@ export class ShipchronicleDB {
   insertCommit(commit: CognitiveCommit): void {
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO cognitive_commits
-      (id, git_hash, started_at, closed_at, closed_by, parallel, files_read, files_changed)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      (id, git_hash, started_at, closed_at, closed_by, parallel, files_read, files_changed, published, hidden, display_order, title)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -86,7 +86,11 @@ export class ShipchronicleDB {
       commit.closedBy,
       commit.parallel ? 1 : 0,
       JSON.stringify(commit.filesRead),
-      JSON.stringify(commit.filesChanged)
+      JSON.stringify(commit.filesChanged),
+      commit.published ? 1 : 0,
+      commit.hidden ? 1 : 0,
+      commit.displayOrder || 0,
+      commit.title || null
     );
 
     // Insert sessions
@@ -156,6 +160,76 @@ export class ShipchronicleDB {
     return row.count;
   }
 
+  /**
+   * Update a cognitive commit (for curation)
+   */
+  updateCommit(
+    id: string,
+    updates: Partial<Pick<CognitiveCommit, "title" | "published" | "hidden" | "displayOrder">>
+  ): boolean {
+    const fields: string[] = [];
+    const values: (string | number | null)[] = [];
+
+    if (updates.title !== undefined) {
+      fields.push("title = ?");
+      values.push(updates.title || null);
+    }
+    if (updates.published !== undefined) {
+      fields.push("published = ?");
+      values.push(updates.published ? 1 : 0);
+    }
+    if (updates.hidden !== undefined) {
+      fields.push("hidden = ?");
+      values.push(updates.hidden ? 1 : 0);
+    }
+    if (updates.displayOrder !== undefined) {
+      fields.push("display_order = ?");
+      values.push(updates.displayOrder);
+    }
+
+    if (fields.length === 0) return false;
+
+    values.push(id);
+    const stmt = this.db.prepare(
+      `UPDATE cognitive_commits SET ${fields.join(", ")} WHERE id = ?`
+    );
+    const result = stmt.run(...values);
+    return result.changes > 0;
+  }
+
+  /**
+   * Delete a cognitive commit and all related data
+   */
+  deleteCommit(id: string): boolean {
+    // Delete in order due to foreign key relationships
+    const sessions = this.getSessionsForCommit(id);
+    for (const session of sessions) {
+      this.db.prepare("DELETE FROM turns WHERE session_id = ?").run(session.id);
+    }
+    this.db.prepare("DELETE FROM sessions WHERE commit_id = ?").run(id);
+    this.db.prepare("DELETE FROM visuals WHERE commit_id = ?").run(id);
+    const result = this.db
+      .prepare("DELETE FROM cognitive_commits WHERE id = ?")
+      .run(id);
+    return result.changes > 0;
+  }
+
+  /**
+   * Bulk update commits (for batch publish)
+   */
+  bulkUpdateCommits(
+    ids: string[],
+    updates: Partial<Pick<CognitiveCommit, "published" | "hidden">>
+  ): number {
+    let updated = 0;
+    for (const id of ids) {
+      if (this.updateCommit(id, updates)) {
+        updated++;
+      }
+    }
+    return updated;
+  }
+
   private rowToCommit(row: CommitRow): CognitiveCommit {
     const sessions = this.getSessionsForCommit(row.id);
 
@@ -169,6 +243,11 @@ export class ShipchronicleDB {
       filesRead: JSON.parse(row.files_read || "[]"),
       filesChanged: JSON.parse(row.files_changed || "[]"),
       sessions,
+      // Curation fields
+      title: row.title || undefined,
+      published: row.published === 1,
+      hidden: row.hidden === 1,
+      displayOrder: row.display_order || 0,
     };
   }
 
@@ -329,6 +408,56 @@ export class ShipchronicleDB {
     return visual;
   }
 
+  /**
+   * Get a visual by ID
+   */
+  getVisual(id: string): Visual | null {
+    const row = this.db
+      .prepare("SELECT * FROM visuals WHERE id = ?")
+      .get(id) as VisualRow | undefined;
+
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      commitId: row.commit_id,
+      type: row.type as Visual["type"],
+      path: row.path,
+      capturedAt: row.captured_at,
+      caption: row.caption || undefined,
+    };
+  }
+
+  /**
+   * Update a visual (for caption editing)
+   */
+  updateVisual(id: string, updates: { caption?: string }): boolean {
+    const fields: string[] = [];
+    const values: (string | null)[] = [];
+
+    if (updates.caption !== undefined) {
+      fields.push("caption = ?");
+      values.push(updates.caption || null);
+    }
+
+    if (fields.length === 0) return false;
+
+    values.push(id);
+    const stmt = this.db.prepare(
+      `UPDATE visuals SET ${fields.join(", ")} WHERE id = ?`
+    );
+    const result = stmt.run(...values);
+    return result.changes > 0;
+  }
+
+  /**
+   * Delete a visual
+   */
+  deleteVisual(id: string): boolean {
+    const result = this.db.prepare("DELETE FROM visuals WHERE id = ?").run(id);
+    return result.changes > 0;
+  }
+
   // ============================================
   // Daemon State
   // ============================================
@@ -418,6 +547,11 @@ interface CommitRow {
   parallel: number;
   files_read: string | null;
   files_changed: string | null;
+  // Curation fields (v2)
+  published: number;
+  hidden: number;
+  display_order: number;
+  title: string | null;
 }
 
 interface SessionRow {

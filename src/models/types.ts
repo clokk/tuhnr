@@ -40,6 +40,11 @@ export interface CognitiveCommit {
   parallel: boolean;
   filesRead: string[];
   filesChanged: string[];
+  // Curation fields (Phase 3)
+  title?: string;
+  published?: boolean;
+  hidden?: boolean;
+  displayOrder?: number;
 }
 
 export interface ParseResult {

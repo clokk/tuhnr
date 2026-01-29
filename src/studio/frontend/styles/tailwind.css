@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Chronicle Interface Theme */
+:root {
+  --bg: #0c0a09;
+  --panel: #18181b;
+  --panel-alt: #1c1917;
+  --chronicle-blue: #38bdf8;
+  --chronicle-green: #4ade80;
+  --chronicle-amber: #fbbf24;
+  --chronicle-purple: #a78bfa;
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background-color: var(--bg);
+  color: #fafafa;
+  margin: 0;
+  padding: 0;
+}
+
+/* Mono text for code elements */
+.font-mono {
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
+
+/* Custom utilities */
+@layer utilities {
+  .text-chronicle-blue {
+    color: var(--chronicle-blue);
+  }
+  .text-chronicle-green {
+    color: var(--chronicle-green);
+  }
+  .text-chronicle-amber {
+    color: var(--chronicle-amber);
+  }
+  .text-chronicle-purple {
+    color: var(--chronicle-purple);
+  }
+  .bg-bg {
+    background-color: var(--bg);
+  }
+  .bg-panel {
+    background-color: var(--panel);
+  }
+  .bg-panel-alt {
+    background-color: var(--panel-alt);
+  }
+  .border-chronicle-blue {
+    border-color: var(--chronicle-blue);
+  }
+  .border-chronicle-green {
+    border-color: var(--chronicle-green);
+  }
+  .border-chronicle-amber {
+    border-color: var(--chronicle-amber);
+  }
+  .border-chronicle-purple {
+    border-color: var(--chronicle-purple);
+  }
+}

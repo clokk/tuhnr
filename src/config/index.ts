@@ -295,3 +295,63 @@ export function isDaemonRunning(projectPath: string): boolean {
     return false;
   }
 }
+
+/**
+ * Get global storage directory for all Claude history
+ */
+export function getGlobalStorageDir(): string {
+  const home = process.env.HOME || "";
+  return path.join(home, ".shipchronicle", "global");
+}
+
+/**
+ * Ensure global storage directory exists
+ */
+export function ensureGlobalStorageDir(): string {
+  const storageDir = getGlobalStorageDir();
+
+  if (!fs.existsSync(storageDir)) {
+    fs.mkdirSync(storageDir, { recursive: true });
+  }
+
+  return storageDir;
+}
+
+/**
+ * Discover all Claude Code projects
+ */
+export function discoverAllClaudeProjects(): string[] {
+  const home = process.env.HOME || "";
+  const claudeProjectsDir = path.join(home, ".claude", "projects");
+
+  if (!fs.existsSync(claudeProjectsDir)) {
+    return [];
+  }
+
+  const entries = fs.readdirSync(claudeProjectsDir);
+  const projects: string[] = [];
+
+  for (const entry of entries) {
+    const fullPath = path.join(claudeProjectsDir, entry);
+    if (fs.statSync(fullPath).isDirectory()) {
+      // Check if it has any .jsonl files
+      const files = fs.readdirSync(fullPath);
+      if (files.some((f) => f.endsWith(".jsonl"))) {
+        projects.push(fullPath);
+      }
+    }
+  }
+
+  return projects;
+}
+
+/**
+ * Get project name from Claude project path
+ * e.g., -Users-connorleisz-myproject -> myproject
+ */
+export function getProjectNameFromClaudePath(claudePath: string): string {
+  const basename = path.basename(claudePath);
+  const parts = basename.split("-");
+  // Return last part, or full name if no dashes
+  return parts[parts.length - 1] || basename;
+}

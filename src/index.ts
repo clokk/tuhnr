@@ -18,11 +18,16 @@ import {
   removeDaemonPid,
   getStorageDir,
   detectClaudeProjectPath,
+  getGlobalStorageDir,
+  ensureGlobalStorageDir,
+  discoverAllClaudeProjects,
+  getProjectNameFromClaudePath,
 } from "./config";
 import { ShipchronicleDB } from "./storage/db";
 import { ShipchronicleDaemon } from "./daemon";
 import { captureScreenshot } from "./daemon/capturer";
 import { getBestCaptureUrl } from "./utils/server-detect";
+import { startStudio } from "./studio";
 
 const program = new Command();
 
@@ -548,5 +553,163 @@ function getTimeAgo(date: Date): string {
   }
   return "Just now";
 }
+
+// ============================================
+// Phase 3: Studio Command
+// ============================================
+
+program
+  .command("studio")
+  .description("Start the web-based curation studio")
+  .option("-p, --port <port>", "Port to run on", parseInt)
+  .option("--no-open", "Don't auto-open browser")
+  .option("-g, --global", "Global mode: view all Claude Code history")
+  .action(async (options) => {
+    try {
+      let storagePath: string;
+
+      if (options.global) {
+        // Global mode - use global storage directory
+        storagePath = ensureGlobalStorageDir();
+        console.log("Starting studio in global mode...");
+      } else {
+        // Project mode - require initialization
+        const projectPath = process.cwd();
+
+        if (!isInitialized(projectPath)) {
+          console.error("Project not initialized. Run 'shipchronicle init' first.");
+          console.error("Or use --global flag to view all Claude Code history.");
+          process.exit(1);
+        }
+
+        storagePath = projectPath;
+      }
+
+      await startStudio(storagePath, {
+        port: options.port,
+        open: options.open !== false,
+        global: options.global,
+      });
+    } catch (error) {
+      console.error(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command("import")
+  .description("Import parsed sessions into the database")
+  .option("-c, --claude-path <path>", "Claude project path to import from")
+  .option("-g, --global", "Import all Claude Code projects into global history")
+  .option("--clear", "Clear existing commits before importing")
+  .action(async (options) => {
+    try {
+      let storagePath: string;
+      let claudePaths: string[];
+
+      if (options.global) {
+        // Global mode - import from all Claude projects
+        storagePath = ensureGlobalStorageDir();
+        claudePaths = discoverAllClaudeProjects();
+
+        console.log(`Found ${claudePaths.length} Claude Code projects\n`);
+
+        if (claudePaths.length === 0) {
+          console.log("No Claude Code projects found.");
+          return;
+        }
+      } else {
+        // Project mode
+        const projectPath = process.cwd();
+
+        if (!isInitialized(projectPath)) {
+          console.error("Project not initialized. Run 'shipchronicle init' first.");
+          console.error("Or use --global flag to import all Claude Code history.");
+          process.exit(1);
+        }
+
+        storagePath = projectPath;
+        const config = loadConfig(projectPath);
+        claudePaths = [options.claudePath || config.claudeProjectPath];
+      }
+
+      // Open database
+      const db = new ShipchronicleDB(storagePath);
+
+      // Optionally clear existing commits
+      if (options.clear) {
+        console.log("Clearing existing commits...");
+        const existingCommits = db.getAllCommits();
+        for (const commit of existingCommits) {
+          db.deleteCommit(commit.id);
+        }
+        console.log();
+      }
+
+      let totalImported = 0;
+      let totalSkipped = 0;
+
+      for (const claudePath of claudePaths) {
+        const projectName = getProjectNameFromClaudePath(claudePath);
+        console.log(`Importing: ${projectName}`);
+        console.log(`  Path: ${claudePath}`);
+
+        // Parse the sessions
+        const result = await parseProject(claudePath, { verbose: false });
+
+        if (result.cognitiveCommits.length === 0) {
+          console.log("  No commits found\n");
+          continue;
+        }
+
+        console.log(`  Found ${result.cognitiveCommits.length} commits, ${result.totalTurns} turns`);
+
+        // Import commits
+        let imported = 0;
+        let skipped = 0;
+
+        for (const commit of result.cognitiveCommits) {
+          // Check if commit already exists
+          const existing = db.getCommit(commit.id) ||
+            (commit.gitHash ? db.getCommitByGitHash(commit.gitHash) : null);
+
+          if (existing) {
+            skipped++;
+            continue;
+          }
+
+          // Add project name as title prefix for global mode
+          if (options.global && !commit.title) {
+            commit.title = `[${projectName}]`;
+          }
+
+          db.insertCommit(commit);
+          imported++;
+        }
+
+        console.log(`  Imported: ${imported}, Skipped: ${skipped}\n`);
+        totalImported += imported;
+        totalSkipped += skipped;
+      }
+
+      db.close();
+
+      console.log("─".repeat(40));
+      console.log(`Total imported: ${totalImported} commits`);
+      if (totalSkipped > 0) {
+        console.log(`Total skipped: ${totalSkipped} (already exist)`);
+      }
+      console.log();
+
+      if (options.global) {
+        console.log("Import complete! Run 'shipchronicle studio --global' to view.");
+      } else {
+        console.log("Import complete! Run 'shipchronicle studio' to view.");
+      }
+    } catch (error) {
+      console.error(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
 
 program.parse();
