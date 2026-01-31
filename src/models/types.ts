@@ -5,6 +5,14 @@
 
 export type ClosedBy = "git_commit" | "session_end" | "explicit";
 
+/** Source agent/tool that the conversation was imported from */
+export type ConversationSource =
+  | "claude_code"
+  | "cursor"
+  | "antigravity"
+  | "codex"
+  | "opencode";
+
 export interface ToolCall {
   id: string;
   name: string;
@@ -48,6 +56,8 @@ export interface CognitiveCommit {
   displayOrder?: number;
   // Global mode field
   projectName?: string;
+  // Source agent (v5)
+  source?: ConversationSource;
 }
 
 export interface ParseResult {

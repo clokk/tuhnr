@@ -2,7 +2,7 @@
  * SQLite schema definitions for Agentlogs
  */
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export const CREATE_TABLES = `
 -- Cognitive commits (persisted)
@@ -90,6 +90,14 @@ export const MIGRATIONS: { version: number; sql: string }[] = [
     sql: `
       -- Add model column to turns for displaying which model generated the response
       ALTER TABLE turns ADD COLUMN model TEXT;
+    `,
+  },
+  {
+    version: 5,
+    sql: `
+      -- Add source column to track which agent/tool the conversation was imported from
+      -- Valid values: claude_code, cursor, antigravity, codex, opencode
+      ALTER TABLE cognitive_commits ADD COLUMN source TEXT DEFAULT 'claude_code';
     `,
   },
 ];

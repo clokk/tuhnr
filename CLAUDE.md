@@ -9,7 +9,7 @@ Three-layer design:
 | Layer | Location | Purpose |
 |-------|----------|---------|
 | Parser | `src/parser/` | Reads JSONL logs from `~/.claude/projects/`, extracts cognitive commits via state machine |
-| Storage | `src/storage/` | SQLite with migrations (currently v3), supports global and project modes |
+| Storage | `src/storage/` | SQLite with migrations (currently v5), supports global and project modes |
 | Studio | `src/studio/` | React frontend + Hono API for browsing and curating commits |
 
 ## Data Model
@@ -27,7 +27,11 @@ Three-layer design:
   parallel: boolean;       // True if sessions overlapped
   filesRead: string[];     // Paths only
   filesChanged: string[];  // Paths with diffs
+  source: ConversationSource; // Agent that produced the conversation
 }
+
+// Supported sources (currently only claude_code is implemented)
+type ConversationSource = "claude_code" | "cursor" | "antigravity" | "codex" | "opencode";
 ```
 
 ### Commit Closure

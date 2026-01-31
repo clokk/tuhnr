@@ -90,8 +90,8 @@ export class AgentlogsDB {
   insertCommit(commit: CognitiveCommit): void {
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO cognitive_commits
-      (id, git_hash, started_at, closed_at, closed_by, parallel, files_read, files_changed, published, hidden, display_order, title, project_name)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, git_hash, started_at, closed_at, closed_by, parallel, files_read, files_changed, published, hidden, display_order, title, project_name, source)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -107,7 +107,8 @@ export class AgentlogsDB {
       commit.hidden ? 1 : 0,
       commit.displayOrder || 0,
       commit.title || null,
-      commit.projectName || null
+      commit.projectName || null,
+      commit.source || "claude_code"
     );
 
     // Insert sessions
@@ -295,6 +296,8 @@ export class AgentlogsDB {
       displayOrder: row.display_order || 0,
       // Global mode field
       projectName: row.project_name || undefined,
+      // Source agent (v5)
+      source: (row.source as CognitiveCommit["source"]) || "claude_code",
     };
   }
 
@@ -603,6 +606,8 @@ interface CommitRow {
   title: string | null;
   // Global mode field (v3)
   project_name: string | null;
+  // Source agent (v5)
+  source: string | null;
 }
 
 interface SessionRow {

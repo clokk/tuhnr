@@ -4,6 +4,14 @@
 
 const API_BASE = "/api";
 
+/** Source agent/tool that the conversation was imported from */
+export type ConversationSource =
+  | "claude_code"
+  | "cursor"
+  | "antigravity"
+  | "codex"
+  | "opencode";
+
 export interface Turn {
   id: string;
   role: "user" | "assistant";
@@ -41,6 +49,7 @@ export interface CognitiveCommit {
   displayOrder?: number;
   turnCount?: number;
   projectName?: string;
+  source?: ConversationSource;
 }
 
 export interface ProjectInfo {
