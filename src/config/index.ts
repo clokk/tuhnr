@@ -347,11 +347,53 @@ export function discoverAllClaudeProjects(): string[] {
 
 /**
  * Get project name from Claude project path
- * e.g., -Users-connorleisz-myproject -> myproject
+ * e.g., -Users-connorleisz-connor-portfolio -> connor-portfolio
+ *
+ * Claude encodes paths by replacing / with - and adding leading -.
+ * This is lossy for hyphenated directory names, so we check the filesystem.
  */
 export function getProjectNameFromClaudePath(claudePath: string): string {
   const basename = path.basename(claudePath);
-  const parts = basename.split("-");
-  // Return last part, or full name if no dashes
+
+  // Try to match macOS pattern: -Users-{username}-{rest}
+  const macMatch = basename.match(/^-Users-([^-]+)-(.+)$/);
+  if (macMatch) {
+    const username = macMatch[1];
+    const rest = macMatch[2];
+    const basePath = `/Users/${username}`;
+
+    // Try progressively joining segments with hyphens to find existing path
+    const segments = rest.split("-");
+    for (let i = segments.length; i >= 1; i--) {
+      const projectName = segments.slice(0, i).join("-");
+      const testPath = path.join(basePath, projectName);
+      if (fs.existsSync(testPath) && fs.statSync(testPath).isDirectory()) {
+        return projectName;
+      }
+    }
+    // Fallback: return last segment
+    return segments[segments.length - 1];
+  }
+
+  // Try Linux pattern: -home-{username}-{rest}
+  const linuxMatch = basename.match(/^-home-([^-]+)-(.+)$/);
+  if (linuxMatch) {
+    const username = linuxMatch[1];
+    const rest = linuxMatch[2];
+    const basePath = `/home/${username}`;
+
+    const segments = rest.split("-");
+    for (let i = segments.length; i >= 1; i--) {
+      const projectName = segments.slice(0, i).join("-");
+      const testPath = path.join(basePath, projectName);
+      if (fs.existsSync(testPath) && fs.statSync(testPath).isDirectory()) {
+        return projectName;
+      }
+    }
+    return segments[segments.length - 1];
+  }
+
+  // Fallback for other patterns (e.g., -Users-username with no project)
+  const parts = basename.split("-").filter(Boolean);
   return parts[parts.length - 1] || basename;
 }
