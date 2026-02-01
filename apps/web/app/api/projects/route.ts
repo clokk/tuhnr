@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import { getCommits } from "@cogcommit/supabase";
+import { transformCommitWithRelations, type DbCommitWithRelations } from "@cogcommit/supabase";
 
 export async function GET() {
   const supabase = await createClient();
@@ -14,14 +14,30 @@ export async function GET() {
   }
 
   try {
-    // Use shared getCommits to ensure consistent filtering
-    const allCommits = await getCommits(supabase, {
-      userId: user.id,
-      excludeHidden: true,
-      limit: 1000,
-    });
+    // Use explicit relationship aliases that match the database schema
+    const { data: rawCommits, error } = await supabase
+      .from("cognitive_commits")
+      .select(
+        `
+        *,
+        sessions:cognitive_sessions (
+          *,
+          turns:cognitive_turns (*)
+        )
+      `
+      )
+      .eq("user_id", user.id)
+      .is("deleted_at", null)
+      .eq("hidden", false);
 
-    // Filter out 0-turn commits and build project counts
+    if (error) {
+      console.error("Failed to fetch projects:", error);
+      return NextResponse.json({ error: "Failed to fetch projects" }, { status: 500 });
+    }
+
+    // Transform and filter out 0-turn commits, then build project counts
+    const allCommits = ((rawCommits as DbCommitWithRelations[]) || []).map(transformCommitWithRelations);
+
     const projectCounts = new Map<string, number>();
     let totalCount = 0;
 
