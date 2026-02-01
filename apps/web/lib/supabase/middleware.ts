@@ -54,27 +54,35 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Refresh session if it exists
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Quick check: does a session cookie exist?
+  // This is fast (no network call) - full auth verification happens in the layout
+  const hasSessionCookie = request.cookies.has("sb-access-token") ||
+    Array.from(request.cookies.getAll()).some(c => c.name.includes("auth-token"));
 
-  // Protected routes - redirect to login if no session
   const isProtectedRoute = request.nextUrl.pathname.startsWith("/dashboard");
   const isAuthRoute =
     request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/callback");
 
-  if (isProtectedRoute && !user) {
+  // Only redirect to login if no session cookie exists at all
+  // Full auth verification with getUser() happens in the layout with Suspense
+  if (isProtectedRoute && !hasSessionCookie) {
     const redirectUrl = new URL("/login", request.url);
     redirectUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
     return NextResponse.redirect(redirectUrl);
   }
 
-  // Redirect to dashboard if already logged in and trying to access auth routes
-  if (isAuthRoute && user) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+  // For auth routes, do the full check to redirect authenticated users
+  if (isAuthRoute) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
   }
+
+  // Refresh session in background (non-blocking for page render)
+  // The getSession call refreshes tokens if needed
+  supabase.auth.getSession();
 
   return response;
 }
