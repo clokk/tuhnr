@@ -2,6 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import DashboardView from "@/components/DashboardView";
 import type { CognitiveCommit, Session, Turn, ToolCall } from "@cogcommit/types";
 
+interface ProjectListItem {
+  name: string;
+  count: number;
+}
+
 interface DbTurn {
   id: string;
   role: string;
@@ -101,7 +106,7 @@ export default async function DashboardPage() {
     user?.email?.split("@")[0] ||
     "User";
 
-  // Fetch all commits with full session/turn data for inline display
+  // Fetch all commits with full session/turn data, filtering out 0-turn commits
   const { data: commits, error } = await supabase
     .from("cognitive_commits")
     .select(
@@ -117,6 +122,7 @@ export default async function DashboardPage() {
       title,
       project_name,
       source,
+      turn_count,
       sessions (
         id,
         started_at,
@@ -128,14 +134,46 @@ export default async function DashboardPage() {
     .eq("user_id", user?.id)
     .is("deleted_at", null)
     .eq("hidden", false)
-    .order("closed_at", { ascending: false })
-    .limit(50);
+    .gt("turn_count", 0) // Filter out 0-turn commits
+    .order("closed_at", { ascending: false });
 
   if (error) {
     console.error("Failed to fetch commits:", error);
   }
 
+  // Fetch projects list for dropdown
+  const { data: projectsData } = await supabase
+    .from("cognitive_commits")
+    .select("project_name")
+    .eq("user_id", user?.id)
+    .is("deleted_at", null)
+    .eq("hidden", false)
+    .gt("turn_count", 0)
+    .not("project_name", "is", null);
+
+  // Group by project name and count
+  const projectCounts = new Map<string, number>();
+  let totalCount = 0;
+
+  for (const row of projectsData || []) {
+    const name = row.project_name as string;
+    projectCounts.set(name, (projectCounts.get(name) || 0) + 1);
+    totalCount++;
+  }
+
+  // Convert to array and sort by count descending
+  const projects: ProjectListItem[] = Array.from(projectCounts.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+
   const typedCommits = ((commits as DbCommit[]) || []).map(transformCommit);
 
-  return <DashboardView commits={typedCommits} userName={userName} />;
+  return (
+    <DashboardView
+      commits={typedCommits}
+      userName={userName}
+      projects={projects}
+      totalCount={totalCount}
+    />
+  );
 }

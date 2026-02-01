@@ -6,12 +6,107 @@ import {
   CommitList,
   useResizable,
   ConversationViewer,
+  SidebarHeader,
 } from "@cogcommit/ui";
-import type { CognitiveCommit } from "@cogcommit/types";
+import type { CognitiveCommit, Session, Turn, ToolCall } from "@cogcommit/types";
+
+interface ProjectListItem {
+  name: string;
+  count: number;
+}
 
 interface DashboardViewProps {
   commits: CognitiveCommit[];
   userName: string;
+  projects: ProjectListItem[];
+  totalCount: number;
+}
+
+interface DbTurn {
+  id: string;
+  role: string;
+  content: string | null;
+  timestamp: string;
+  model: string | null;
+  tool_calls: string | null;
+}
+
+interface DbSession {
+  id: string;
+  started_at: string;
+  ended_at: string;
+  turns: DbTurn[];
+}
+
+interface DbCommit {
+  id: string;
+  git_hash: string | null;
+  started_at: string;
+  closed_at: string;
+  closed_by: string;
+  parallel: boolean;
+  files_read: string[];
+  files_changed: string[];
+  title: string | null;
+  project_name: string | null;
+  source: string;
+  turn_count?: number;
+  sessions: DbSession[];
+}
+
+function transformTurn(dbTurn: DbTurn): Turn {
+  let toolCalls: ToolCall[] | undefined;
+
+  if (dbTurn.tool_calls) {
+    try {
+      const parsed = JSON.parse(dbTurn.tool_calls);
+      toolCalls = parsed.map((tc: { id: string; name: string; input?: Record<string, unknown>; result?: string; isError?: boolean }) => ({
+        id: tc.id,
+        name: tc.name,
+        input: tc.input || {},
+        result: tc.result,
+        isError: tc.isError,
+      }));
+    } catch {
+      // Ignore parse errors
+    }
+  }
+
+  return {
+    id: dbTurn.id,
+    role: dbTurn.role as "user" | "assistant",
+    content: dbTurn.content || "",
+    timestamp: dbTurn.timestamp,
+    model: dbTurn.model || undefined,
+    toolCalls,
+  };
+}
+
+function transformSession(dbSession: DbSession): Session {
+  return {
+    id: dbSession.id,
+    startedAt: dbSession.started_at,
+    endedAt: dbSession.ended_at,
+    turns: dbSession.turns.map(transformTurn),
+  };
+}
+
+function transformCommit(dbCommit: DbCommit): CognitiveCommit {
+  return {
+    id: dbCommit.id,
+    gitHash: dbCommit.git_hash,
+    startedAt: dbCommit.started_at,
+    closedAt: dbCommit.closed_at,
+    closedBy: dbCommit.closed_by as "git_commit" | "session_end" | "explicit",
+    parallel: dbCommit.parallel,
+    filesRead: dbCommit.files_read || [],
+    filesChanged: dbCommit.files_changed || [],
+    title: dbCommit.title || undefined,
+    projectName: dbCommit.project_name || undefined,
+    source: dbCommit.source as CognitiveCommit["source"],
+    sessions: dbCommit.sessions.map(transformSession),
+    turnCount: dbCommit.sessions.reduce((sum, s) => sum + s.turns.length, 0),
+  };
 }
 
 // localStorage keys
@@ -24,9 +119,19 @@ const MIN_SIDEBAR_WIDTH = 200;
 const MAX_SIDEBAR_WIDTH = 600;
 const COLLAPSED_WIDTH = 48;
 
-export default function DashboardView({ commits, userName }: DashboardViewProps) {
+export default function DashboardView({
+  commits: initialCommits,
+  userName,
+  projects,
+  totalCount,
+}: DashboardViewProps) {
+  // State for lazy loading
+  const [commits, setCommits] = useState<CognitiveCommit[]>(initialCommits);
+  const [selectedProject, setSelectedProject] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
   const [selectedCommitId, setSelectedCommitId] = useState<string | null>(
-    commits[0]?.id || null
+    initialCommits[0]?.id || null
   );
 
   // Sidebar collapse state
@@ -34,6 +139,31 @@ export default function DashboardView({ commits, userName }: DashboardViewProps)
     if (typeof window === "undefined") return false;
     return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
   });
+
+  // Fetch commits when project changes
+  const handleSelectProject = useCallback(async (project: string | null) => {
+    setSelectedProject(project);
+    setLoading(true);
+
+    try {
+      const res = await fetch(`/api/commits${project ? `?project=${encodeURIComponent(project)}` : ""}`);
+      const { commits: rawCommits } = await res.json();
+
+      const newCommits = (rawCommits as DbCommit[]).map(transformCommit);
+      setCommits(newCommits);
+
+      // Select first commit in filtered list
+      if (newCommits.length > 0) {
+        setSelectedCommitId(newCommits[0].id);
+      } else {
+        setSelectedCommitId(null);
+      }
+    } catch (err) {
+      console.error("Failed to fetch commits:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Resizable sidebar
   const { width: sidebarWidth, isDragging, handleMouseDown } = useResizable(
@@ -55,12 +185,23 @@ export default function DashboardView({ commits, userName }: DashboardViewProps)
 
   const selectedCommit = commits.find((c) => c.id === selectedCommitId);
 
+  // Show project badges when not filtering by a specific project
+  const showProjectBadges = !selectedProject;
+
+  // Calculate total turns for stats
+  const totalTurns = commits.reduce((sum, c) => sum + (c.turnCount || 0), 0);
+
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-bg">
       {/* Header */}
       <Header
         projectName="CogCommit Cloud"
-        stats={{ commitCount: commits.length, totalTurns: commits.reduce((sum, c) => sum + (c.turnCount || 0), 0) }}
+        isGlobal={true}
+        stats={{ commitCount: commits.length, totalTurns }}
+        projects={projects}
+        totalCount={totalCount}
+        selectedProject={selectedProject}
+        onSelectProject={handleSelectProject}
       />
 
       <div className="flex flex-1 overflow-hidden" style={{ minHeight: 0 }}>
@@ -72,25 +213,12 @@ export default function DashboardView({ commits, userName }: DashboardViewProps)
           {sidebarCollapsed ? (
             // Collapsed mini view
             <div className="flex flex-col h-full">
-              <button
-                onClick={toggleSidebar}
-                className="p-3 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-                title="Expand sidebar"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </button>
+              <SidebarHeader
+                title="Commits"
+                count={commits.length}
+                collapsed={true}
+                onToggle={toggleSidebar}
+              />
               <div className="flex-1 flex flex-col items-center pt-2 gap-1 overflow-y-auto">
                 {commits.slice(0, 20).map((commit) => (
                   <button
@@ -116,37 +244,25 @@ export default function DashboardView({ commits, userName }: DashboardViewProps)
           ) : (
             // Expanded view with collapse button
             <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800">
-                <span className="text-sm font-medium text-zinc-400">
-                  Commits ({commits.length})
-                </span>
-                <button
-                  onClick={toggleSidebar}
-                  className="p-1 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors"
-                  title="Collapse sidebar"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline points="15 18 9 12 15 6" />
-                  </svg>
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                <CommitList
-                  commits={commits}
-                  selectedCommitId={selectedCommitId}
-                  onSelectCommit={setSelectedCommitId}
-                  showProjectBadges={true}
-                />
+              <SidebarHeader
+                title="Commits"
+                count={commits.length}
+                collapsed={false}
+                onToggle={toggleSidebar}
+              />
+              <div className="flex-1 overflow-y-auto" style={{ scrollbarGutter: "stable" }}>
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-zinc-400 text-sm">Loading...</div>
+                  </div>
+                ) : (
+                  <CommitList
+                    commits={commits}
+                    selectedCommitId={selectedCommitId}
+                    onSelectCommit={setSelectedCommitId}
+                    showProjectBadges={showProjectBadges}
+                  />
+                )}
               </div>
             </div>
           )}

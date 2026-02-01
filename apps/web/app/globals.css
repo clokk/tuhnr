@@ -38,6 +38,11 @@ body {
   background: #71717a;
 }
 
+/* Scrollbar gutter to prevent layout shift */
+.overflow-y-auto {
+  scrollbar-gutter: stable;
+}
+
 /* Code block styling */
 pre {
   overflow-x: auto;
