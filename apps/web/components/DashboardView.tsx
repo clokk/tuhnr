@@ -8,7 +8,7 @@ import {
   ConversationViewer,
   SidebarHeader,
 } from "@cogcommit/ui";
-import type { CognitiveCommit, Session, Turn, ToolCall } from "@cogcommit/types";
+import type { CognitiveCommit } from "@cogcommit/types";
 
 interface ProjectListItem {
   name: string;
@@ -20,93 +20,6 @@ interface DashboardViewProps {
   userName: string;
   projects: ProjectListItem[];
   totalCount: number;
-}
-
-interface DbTurn {
-  id: string;
-  role: string;
-  content: string | null;
-  timestamp: string;
-  model: string | null;
-  tool_calls: string | null;
-}
-
-interface DbSession {
-  id: string;
-  started_at: string;
-  ended_at: string;
-  turns: DbTurn[];
-}
-
-interface DbCommit {
-  id: string;
-  git_hash: string | null;
-  started_at: string;
-  closed_at: string;
-  closed_by: string;
-  parallel: boolean;
-  files_read: string[];
-  files_changed: string[];
-  title: string | null;
-  project_name: string | null;
-  source: string;
-  turn_count?: number;
-  sessions: DbSession[];
-}
-
-function transformTurn(dbTurn: DbTurn): Turn {
-  let toolCalls: ToolCall[] | undefined;
-
-  if (dbTurn.tool_calls) {
-    try {
-      const parsed = JSON.parse(dbTurn.tool_calls);
-      toolCalls = parsed.map((tc: { id: string; name: string; input?: Record<string, unknown>; result?: string; isError?: boolean }) => ({
-        id: tc.id,
-        name: tc.name,
-        input: tc.input || {},
-        result: tc.result,
-        isError: tc.isError,
-      }));
-    } catch {
-      // Ignore parse errors
-    }
-  }
-
-  return {
-    id: dbTurn.id,
-    role: dbTurn.role as "user" | "assistant",
-    content: dbTurn.content || "",
-    timestamp: dbTurn.timestamp,
-    model: dbTurn.model || undefined,
-    toolCalls,
-  };
-}
-
-function transformSession(dbSession: DbSession): Session {
-  return {
-    id: dbSession.id,
-    startedAt: dbSession.started_at,
-    endedAt: dbSession.ended_at,
-    turns: dbSession.turns.map(transformTurn),
-  };
-}
-
-function transformCommit(dbCommit: DbCommit): CognitiveCommit {
-  return {
-    id: dbCommit.id,
-    gitHash: dbCommit.git_hash,
-    startedAt: dbCommit.started_at,
-    closedAt: dbCommit.closed_at,
-    closedBy: dbCommit.closed_by as "git_commit" | "session_end" | "explicit",
-    parallel: dbCommit.parallel,
-    filesRead: dbCommit.files_read || [],
-    filesChanged: dbCommit.files_changed || [],
-    title: dbCommit.title || undefined,
-    projectName: dbCommit.project_name || undefined,
-    source: dbCommit.source as CognitiveCommit["source"],
-    sessions: dbCommit.sessions.map(transformSession),
-    turnCount: dbCommit.sessions.reduce((sum, s) => sum + s.turns.length, 0),
-  };
 }
 
 // localStorage keys
@@ -140,17 +53,16 @@ export default function DashboardView({
     return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
   });
 
-  // Fetch commits when project changes
+  // Fetch commits when project changes - API returns already-transformed CognitiveCommit[]
   const handleSelectProject = useCallback(async (project: string | null) => {
     setSelectedProject(project);
     setLoading(true);
 
     try {
       const res = await fetch(`/api/commits${project ? `?project=${encodeURIComponent(project)}` : ""}`);
-      const { commits: rawCommits } = await res.json();
+      const { commits: newCommits } = await res.json();
 
-      const newCommits = (rawCommits as DbCommit[]).map(transformCommit);
-      setCommits(newCommits);
+      setCommits(newCommits as CognitiveCommit[]);
 
       // Select first commit in filtered list
       if (newCommits.length > 0) {
