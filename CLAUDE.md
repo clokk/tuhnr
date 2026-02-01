@@ -4,12 +4,13 @@ Parses Claude Code session logs into **Cognitive Commits** — the unit of work 
 
 ## Architecture
 
-Three-layer design:
+Four-layer design:
 
 | Layer | Location | Purpose |
 |-------|----------|---------|
 | Parser | `src/parser/` | Reads JSONL logs from `~/.claude/projects/`, extracts cognitive commits via state machine |
-| Storage | `src/storage/` | SQLite with migrations (currently v5), supports global and project modes |
+| Storage | `src/storage/` | SQLite with migrations (currently v6), supports global and project modes |
+| Sync | `src/sync/` | Cloud sync with Supabase — GitHub OAuth, push/pull commits to cloud |
 | Studio | `src/studio/` | React frontend + Hono API for browsing and curating commits |
 
 ## Data Model
@@ -43,8 +44,28 @@ A cognitive commit closes when:
 
 ### Storage Paths
 
-- **Global mode**: `~/.agentlogs/chronicle.db` — all projects in one DB
-- **Project mode**: `.agentlogs/chronicle.db` — project-scoped (requires `init`)
+- **Global mode**: `~/.agentlogs/global/data.db` — all projects in one DB
+- **Project mode**: `~/.shipchronicle/<hash>/data.db` — project-scoped by path hash
+
+### Cloud Sync
+
+Follows git/github model — local CLI syncs to Supabase cloud backend:
+
+```bash
+agentlogs login              # GitHub OAuth (opens browser)
+agentlogs logout             # Clear local tokens
+agentlogs whoami             # Show current user
+agentlogs push               # Push pending commits to cloud
+agentlogs pull               # Pull new commits from cloud
+agentlogs sync --status      # Show sync state
+```
+
+Auth tokens stored in `~/.agentlogs/auth.json`. Each commit has sync metadata:
+- `cloud_id` — UUID in cloud database
+- `sync_status` — pending | synced | conflict | error
+- `cloud_version` / `local_version` — for conflict detection
+
+See `docs/cloud-architecture.md` for full architecture details.
 
 ---
 
@@ -125,8 +146,12 @@ Using `min-h-screen` on the root allows content to expand beyond viewport, causi
 |------|---------|
 | `src/parser/extractor.ts` | Core parsing state machine — extracts commits from log entries |
 | `src/parser/types.ts` | Log entry type definitions matching Claude Code JSONL format |
-| `src/storage/schema.ts` | Database schema + migrations (check `SCHEMA_VERSION`) |
+| `src/storage/schema.ts` | Database schema + migrations (v6 includes sync metadata) |
 | `src/storage/db.ts` | Database operations, handles global vs project mode |
+| `src/sync/auth.ts` | GitHub OAuth PKCE flow for cloud authentication |
+| `src/sync/client.ts` | Supabase client wrapper, token management |
+| `src/sync/push.ts` | Push local commits to cloud |
+| `src/sync/pull.ts` | Pull cloud commits to local |
 | `src/studio/frontend/App.tsx` | Main React app layout with split pane |
 | `src/studio/frontend/components/CommitDetail.tsx` | Detail view — item navigation, tool grouping |
 | `src/studio/frontend/components/CommitList.tsx` | Left sidebar commit list |
@@ -134,6 +159,7 @@ Using `min-h-screen` on the root allows content to expand beyond viewport, causi
 | `src/studio/frontend/utils/export.ts` | Export formatters + clipboard/download helpers |
 | `src/studio/server.ts` | Hono API server |
 | `src/index.ts` | CLI entry point with all commands |
+| `docs/cloud-architecture.md` | Cloud sync architecture and implementation status |
 | `docs/style-guide.md` | Design system + known UI fixes |
 | `docs/vision.md` | Full product roadmap and architecture decisions |
 
