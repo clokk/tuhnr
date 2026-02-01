@@ -1,10 +1,24 @@
-import { CommitListSkeleton } from "@cogcommit/ui";
+"use client";
+
+import { CommitListSkeleton, Shimmer } from "@cogcommit/ui";
+import { motion } from "framer-motion";
+
+const fadeIn = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 },
+};
 
 export default function DashboardLoading() {
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-bg">
+    <motion.div
+      className="h-screen flex flex-col overflow-hidden bg-bg"
+      variants={fadeIn}
+      initial="hidden"
+      animate="visible"
+    >
       {/* Header skeleton */}
-      <div className="h-14 border-b border-border bg-panel flex items-center justify-between px-4 animate-pulse">
+      <div className="h-14 border-b border-border bg-panel flex items-center justify-between px-4 relative overflow-hidden">
+        <Shimmer className="absolute inset-0" />
         <div className="flex items-center gap-4">
           <div className="h-6 w-6 bg-subtle/30 rounded" />
           <div className="h-5 w-32 bg-subtle/30 rounded" />
@@ -22,7 +36,8 @@ export default function DashboardLoading() {
           style={{ width: 384 }}
         >
           {/* Sidebar header skeleton */}
-          <div className="h-10 border-b border-border flex items-center justify-between px-3 animate-pulse">
+          <div className="h-10 border-b border-border flex items-center justify-between px-3 relative overflow-hidden">
+            <Shimmer className="absolute inset-0" />
             <div className="flex items-center gap-2">
               <div className="h-4 w-16 bg-subtle/30 rounded" />
               <div className="h-5 w-8 bg-subtle/30 rounded-full" />
@@ -42,7 +57,8 @@ export default function DashboardLoading() {
         {/* Right Panel - Detail skeleton */}
         <div className="flex-1 bg-panel-alt overflow-hidden flex flex-col">
           {/* Detail header skeleton */}
-          <div className="h-16 border-b border-border flex items-center justify-between px-6 animate-pulse">
+          <div className="h-16 border-b border-border flex items-center justify-between px-6 relative overflow-hidden">
+            <Shimmer className="absolute inset-0" />
             <div className="flex-1">
               <div className="h-6 w-64 bg-subtle/30 rounded mb-2" />
               <div className="h-4 w-48 bg-subtle/30 rounded" />
@@ -54,36 +70,71 @@ export default function DashboardLoading() {
           </div>
 
           {/* Conversation skeleton */}
-          <div className="flex-1 p-6 space-y-4 animate-pulse overflow-auto">
+          <motion.div
+            className="flex-1 p-6 space-y-4 overflow-auto"
+            variants={{
+              hidden: { opacity: 0 },
+              visible: {
+                opacity: 1,
+                transition: { staggerChildren: 0.15 },
+              },
+            }}
+            initial="hidden"
+            animate="visible"
+          >
             {/* User message skeleton */}
-            <div className="flex gap-3">
+            <motion.div
+              className="flex gap-3"
+              variants={{
+                hidden: { opacity: 0, y: 10 },
+                visible: { opacity: 1, y: 0 },
+              }}
+            >
               <div className="h-8 w-8 bg-subtle/30 rounded-full flex-shrink-0" />
               <div className="flex-1 space-y-2">
                 <div className="h-4 w-24 bg-subtle/30 rounded" />
-                <div className="h-20 w-full bg-subtle/30 rounded-lg" />
+                <div className="h-20 w-full bg-subtle/30 rounded-lg relative overflow-hidden">
+                  <Shimmer className="absolute inset-0" />
+                </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Assistant message skeleton */}
-            <div className="flex gap-3">
+            <motion.div
+              className="flex gap-3"
+              variants={{
+                hidden: { opacity: 0, y: 10 },
+                visible: { opacity: 1, y: 0 },
+              }}
+            >
               <div className="h-8 w-8 bg-chronicle-blue/30 rounded-full flex-shrink-0" />
               <div className="flex-1 space-y-2">
                 <div className="h-4 w-20 bg-subtle/30 rounded" />
-                <div className="h-32 w-full bg-subtle/30 rounded-lg" />
+                <div className="h-32 w-full bg-subtle/30 rounded-lg relative overflow-hidden">
+                  <Shimmer className="absolute inset-0" />
+                </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Another user message skeleton */}
-            <div className="flex gap-3">
+            <motion.div
+              className="flex gap-3"
+              variants={{
+                hidden: { opacity: 0, y: 10 },
+                visible: { opacity: 1, y: 0 },
+              }}
+            >
               <div className="h-8 w-8 bg-subtle/30 rounded-full flex-shrink-0" />
               <div className="flex-1 space-y-2">
                 <div className="h-4 w-24 bg-subtle/30 rounded" />
-                <div className="h-16 w-3/4 bg-subtle/30 rounded-lg" />
+                <div className="h-16 w-3/4 bg-subtle/30 rounded-lg relative overflow-hidden">
+                  <Shimmer className="absolute inset-0" />
+                </div>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

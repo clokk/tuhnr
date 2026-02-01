@@ -215,8 +215,8 @@ export function formatTimeRange(startedAt: string, closedAt: string): string {
     hour12: true,
   };
 
-  // Calculate duration
-  const durationMs = end.getTime() - start.getTime();
+  // Calculate duration (use Math.abs to handle swapped start/end times)
+  const durationMs = Math.abs(end.getTime() - start.getTime());
   const durationMins = Math.floor(durationMs / 60000);
   const durationStr = formatGap(durationMins);
 

@@ -24,8 +24,8 @@ Our caching strategy has four layers, each solving a different problem:
 │  Layer 1: Skeleton Loaders                                  │
 │  "Show something instantly while we wait"                   │
 ├─────────────────────────────────────────────────────────────┤
-│  Layer 2: Server Cache (unstable_cache)                     │
-│  "Remember database results for 1 hour"                     │
+│  Layer 2: Server Cache (React cache())                      │
+│  "Request-level deduplication"                              │
 ├─────────────────────────────────────────────────────────────┤
 │  Layer 3: Client Cache (React Query)                        │
 │  "Remember API results in the browser for 5 minutes"        │

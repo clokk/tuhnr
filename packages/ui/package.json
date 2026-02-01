@@ -18,7 +18,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@cogcommit/types": "workspace:*"
+    "@cogcommit/types": "workspace:*",
+    "framer-motion": "^12.29.2"
   },
   "peerDependencies": {
     "react": "^18.0.0",

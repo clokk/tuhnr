@@ -14,6 +14,7 @@ export { default as Header } from "./Header";
 export { ConversationViewer } from "./ConversationViewer";
 export type { ConversationViewerProps } from "./ConversationViewer";
 export { SidebarHeader } from "./SidebarHeader";
+export { Shimmer } from "./Shimmer";
 
 // Hooks
 export { useResizable } from "./hooks/useResizable";
