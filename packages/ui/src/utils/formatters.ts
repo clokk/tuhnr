@@ -184,8 +184,11 @@ export function formatToolInput(input: Record<string, unknown>): string {
  * Or if spanning multiple days: "Jan 15, 2:30 PM – Jan 16, 10:00 AM (19h 30m)"
  */
 export function formatTimeRange(startedAt: string, closedAt: string): string {
-  const start = new Date(startedAt);
-  const end = new Date(closedAt);
+  // Ensure chronological order (start should be before end)
+  const t1 = new Date(startedAt);
+  const t2 = new Date(closedAt);
+  const start = t1 <= t2 ? t1 : t2;
+  const end = t1 <= t2 ? t2 : t1;
 
   const sameDay =
     start.getFullYear() === end.getFullYear() &&
