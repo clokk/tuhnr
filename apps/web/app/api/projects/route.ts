@@ -1,6 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import { transformCommitWithRelations, type DbCommitWithRelations } from "@cogcommit/supabase";
+
+interface DbCommitMinimal {
+  id: string;
+  project_name: string | null;
+}
 
 export async function GET() {
   const supabase = await createClient();
@@ -14,15 +18,14 @@ export async function GET() {
   }
 
   try {
+    // Fetch only id and project_name - minimal data for counting
+    // Also fetch session count to filter out 0-turn commits
     const { data: rawCommits, error } = await supabase
       .from("cognitive_commits")
       .select(
         `
-        *,
-        sessions (
-          *,
-          turns (*)
-        )
+        id, project_name,
+        sessions!inner (id, turns (id))
       `
       )
       .eq("user_id", user.id)
@@ -34,19 +37,23 @@ export async function GET() {
       return NextResponse.json({ error: "Failed to fetch projects" }, { status: 500 });
     }
 
-    // Transform and filter out 0-turn commits, then build project counts
-    const allCommits = ((rawCommits as DbCommitWithRelations[]) || []).map(transformCommitWithRelations);
-
+    // Build project counts, filtering out 0-turn commits
     const projectCounts = new Map<string, number>();
     let totalCount = 0;
 
-    for (const commit of allCommits) {
-      const turnCount = commit.turnCount ?? 0;
+    for (const commit of rawCommits || []) {
+      // Calculate turn count to filter 0-turn commits
+      const turnCount = (commit as { sessions?: { turns?: { id: string }[] }[] }).sessions?.reduce(
+        (sum, s) => sum + (s.turns?.length || 0),
+        0
+      ) || 0;
+
       if (turnCount === 0) continue;
 
       totalCount++;
-      if (commit.projectName) {
-        projectCounts.set(commit.projectName, (projectCounts.get(commit.projectName) || 0) + 1);
+      const projectName = (commit as DbCommitMinimal).project_name;
+      if (projectName) {
+        projectCounts.set(projectName, (projectCounts.get(projectName) || 0) + 1);
       }
     }
 
@@ -55,7 +62,14 @@ export async function GET() {
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
 
-    return NextResponse.json({ projects, totalCount });
+    return NextResponse.json(
+      { projects, totalCount },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=300, stale-while-revalidate=600",
+        },
+      }
+    );
   } catch (error) {
     console.error("Failed to fetch projects:", error);
     return NextResponse.json({ error: "Failed to fetch projects" }, { status: 500 });

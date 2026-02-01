@@ -1,11 +1,14 @@
 "use client";
 
 import React from "react";
-import type { CognitiveCommit } from "@cogcommit/types";
+import type { CognitiveCommit, CommitListItem } from "@cogcommit/types";
 import CommitCard from "./CommitCard";
 
+// CommitList accepts either full CognitiveCommit[] or lightweight CommitListItem[]
+type CommitData = CognitiveCommit | CommitListItem;
+
 interface CommitListProps {
-  commits: CognitiveCommit[];
+  commits: CommitData[];
   selectedCommitId?: string | null;
   onSelectCommit?: (id: string) => void;
   showProjectBadges?: boolean;

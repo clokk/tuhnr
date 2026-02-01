@@ -1,17 +1,25 @@
 "use client";
 
 import React from "react";
-import type { CognitiveCommit } from "@cogcommit/types";
+import type { CognitiveCommit, CommitListItem } from "@cogcommit/types";
 import { formatTime, getProjectColor } from "./utils/formatters";
 
+// CommitCard accepts either full CognitiveCommit or lightweight CommitListItem
+type CommitData = CognitiveCommit | CommitListItem;
+
 interface CommitCardProps {
-  commit: CognitiveCommit;
+  commit: CommitData;
   isSelected?: boolean;
   onClick?: () => void;
   showProjectBadge?: boolean;
 }
 
-function getFirstUserMessage(commit: CognitiveCommit): string | null {
+function hasFullData(commit: CommitData): commit is CognitiveCommit {
+  return "sessions" in commit && Array.isArray(commit.sessions);
+}
+
+function getFirstUserMessage(commit: CommitData): string | null {
+  if (!hasFullData(commit)) return null;
   for (const session of commit.sessions) {
     for (const turn of session.turns) {
       if (turn.role === "user" && turn.content) {
@@ -33,9 +41,12 @@ export default function CommitCard({
   const borderColor = hasGitHash
     ? "border-chronicle-green"
     : "border-chronicle-amber";
-  const turnCount =
-    commit.turnCount ||
-    commit.sessions.reduce((sum, s) => sum + s.turns.length, 0);
+  const turnCount = commit.turnCount ?? (hasFullData(commit)
+    ? commit.sessions.reduce((sum, s) => sum + s.turns.length, 0)
+    : 0);
+  const sessionCount = "sessionCount" in commit
+    ? commit.sessionCount
+    : (hasFullData(commit) ? commit.sessions.length : 0);
   const projectColor = commit.projectName
     ? getProjectColor(commit.projectName)
     : null;
@@ -94,8 +105,8 @@ export default function CommitCard({
         <div className="flex items-center gap-3 mt-1 text-xs text-muted">
           <span>{turnCount} turns</span>
           <span>
-            {commit.sessions.length} session
-            {commit.sessions.length !== 1 ? "s" : ""}
+            {sessionCount} session
+            {sessionCount !== 1 ? "s" : ""}
           </span>
         </div>
 

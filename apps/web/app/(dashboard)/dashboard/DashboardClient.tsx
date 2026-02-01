@@ -10,8 +10,7 @@ import {
   SidebarHeader,
   Shimmer,
 } from "@cogcommit/ui";
-import type { CognitiveCommit } from "@cogcommit/types";
-import { useCommits, useUpdateCommitTitle, useProjects } from "@/lib/hooks/useCommits";
+import { useCommitList, useCommitDetail, useUpdateCommitTitle, useProjects } from "@/lib/hooks/useCommits";
 
 interface DashboardClientProps {
   userId: string;
@@ -37,12 +36,12 @@ export default function DashboardClient({
   // Project filter state
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
 
-  // React Query for commits - no initial data, will show loading state
+  // React Query for lightweight commit list
   const {
     data: commits = [],
-    isFetching,
-    isLoading,
-  } = useCommits({
+    isFetching: isListFetching,
+    isLoading: isListLoading,
+  } = useCommitList({
     project: selectedProject,
   });
 
@@ -55,6 +54,12 @@ export default function DashboardClient({
   const updateTitleMutation = useUpdateCommitTitle();
 
   const [selectedCommitId, setSelectedCommitId] = useState<string | null>(null);
+
+  // React Query for full commit detail (lazy loaded on selection)
+  const {
+    data: selectedCommit,
+    isLoading: isDetailLoading,
+  } = useCommitDetail(selectedCommitId);
 
   // Select first commit when commits load
   useEffect(() => {
@@ -103,7 +108,7 @@ export default function DashboardClient({
   }, [commits, selectedCommitId]);
 
   // Show loading state
-  const loading = isLoading;
+  const loading = isListLoading;
 
   // Resizable sidebar
   const { width: sidebarWidth, isDragging, handleMouseDown } = useResizable(
@@ -123,12 +128,10 @@ export default function DashboardClient({
     });
   }, []);
 
-  const selectedCommit = commits.find((c) => c.id === selectedCommitId);
-
   // Show project badges when not filtering by a specific project
   const showProjectBadges = !selectedProject;
 
-  // Calculate total turns for stats
+  // Calculate total turns for stats from list data
   const totalTurns = commits.reduce((sum, c) => sum + (c.turnCount || 0), 0);
 
   // Full page loading state
@@ -261,7 +264,7 @@ export default function DashboardClient({
                 onToggle={toggleSidebar}
               />
               <div className="flex-1 overflow-y-auto" style={{ scrollbarGutter: "stable" }}>
-                {isFetching && commits.length === 0 ? (
+                {isListFetching && commits.length === 0 ? (
                   <CommitListSkeleton count={8} showProjectBadges={showProjectBadges} />
                 ) : (
                   <CommitList
@@ -288,7 +291,34 @@ export default function DashboardClient({
 
         {/* Right Panel - Commit Detail */}
         <div className="flex-1 bg-panel-alt overflow-hidden flex flex-col">
-          {selectedCommit ? (
+          {selectedCommitId && isDetailLoading ? (
+            // Loading state for detail panel
+            <div className="flex-1 flex flex-col">
+              <div className="h-16 border-b border-border flex items-center justify-between px-6 relative overflow-hidden">
+                <Shimmer />
+                <div className="flex-1">
+                  <div className="h-6 w-64 bg-subtle/40 rounded mb-2 animate-pulse" />
+                  <div className="h-4 w-48 bg-subtle/40 rounded animate-pulse" />
+                </div>
+              </div>
+              <div className="flex-1 p-6 space-y-4 overflow-auto">
+                <div className="flex gap-3">
+                  <div className="h-8 w-8 bg-subtle/40 rounded-full flex-shrink-0 animate-pulse" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-24 bg-subtle/40 rounded animate-pulse" />
+                    <div className="h-20 w-full bg-subtle/40 rounded-lg animate-pulse" />
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <div className="h-8 w-8 bg-subtle/40 rounded-full flex-shrink-0 animate-pulse" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-20 bg-subtle/40 rounded animate-pulse" />
+                    <div className="h-32 w-full bg-subtle/40 rounded-lg animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : selectedCommit ? (
             <ConversationViewer commit={selectedCommit} onTitleChange={handleTitleChange} />
           ) : (
             <div className="flex items-center justify-center h-full text-muted">

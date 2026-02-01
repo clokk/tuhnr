@@ -75,6 +75,30 @@ export interface CognitiveCommit {
   turnCount?: number;
 }
 
+/**
+ * Lightweight commit data for list views.
+ * Contains only summary fields needed for sidebar display.
+ * Full sessions/turns are fetched lazily via useCommitDetail.
+ */
+export interface CommitListItem {
+  id: string;
+  gitHash: string | null;
+  startedAt: string;
+  closedAt: string;
+  closedBy: ClosedBy;
+  parallel: boolean;
+  // Curation fields
+  title?: string;
+  hidden?: boolean;
+  // Global mode field
+  projectName?: string;
+  // Source agent
+  source?: ConversationSource;
+  // Computed counts for display
+  sessionCount: number;
+  turnCount: number;
+}
+
 export interface ParseResult {
   project: string;
   projectPath: string;

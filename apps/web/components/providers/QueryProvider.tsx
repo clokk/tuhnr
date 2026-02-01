@@ -17,8 +17,9 @@ export default function QueryProvider({
             staleTime: 5 * 60 * 1000,
             // 30 minutes garbage collection time
             gcTime: 30 * 60 * 1000,
-            // Refetch when window regains focus (after stale time)
-            refetchOnWindowFocus: true,
+            // Disabled to reduce unnecessary refetches
+            // Data will still refetch when stale and user interacts
+            refetchOnWindowFocus: false,
             // Don't retry failed requests immediately
             retry: 1,
             retryDelay: 1000,

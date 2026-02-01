@@ -56,11 +56,12 @@ export async function GET(request: Request) {
     });
 
     // Return with cache headers for browser/CDN caching
+    // Aligned with React Query staleTime (5 minutes)
     return NextResponse.json(
       { commits },
       {
         headers: {
-          "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
+          "Cache-Control": "private, max-age=300, stale-while-revalidate=600",
         },
       }
     );
