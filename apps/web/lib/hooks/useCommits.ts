@@ -19,6 +19,10 @@ export const commitKeys = {
     [...commitKeys.all, "list", { project: project ?? "all" }] as const,
 };
 
+export const projectKeys = {
+  all: ["projects"] as const,
+};
+
 interface UseCommitsOptions {
   initialData?: CognitiveCommit[];
   project?: string | null;
@@ -108,5 +112,27 @@ export function useUpdateCommitTitle() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: commitKeys.all });
     },
+  });
+}
+
+interface ProjectsResponse {
+  projects: ProjectListItem[];
+  totalCount: number;
+}
+
+/**
+ * Hook for fetching projects list with React Query.
+ */
+export function useProjects() {
+  return useQuery({
+    queryKey: projectKeys.all,
+    queryFn: async (): Promise<ProjectsResponse> => {
+      const res = await fetch("/api/projects");
+      if (!res.ok) {
+        throw new Error("Failed to fetch projects");
+      }
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
   });
 }

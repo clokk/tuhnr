@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
-import DashboardView from "@/components/DashboardView";
-import { getCachedCommits } from "@/lib/data/commits";
+import DashboardClient from "./DashboardClient";
+
+// Force dynamic rendering
+export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -21,16 +23,12 @@ export default async function DashboardPage() {
 
   const avatarUrl = user.user_metadata?.avatar_url;
 
-  // Fetch commits with server-side caching
-  const { commits, projects, totalCount } = await getCachedCommits(user.id);
-
+  // Don't fetch commits server-side - let client handle it with loading state
   return (
-    <DashboardView
-      commits={commits}
+    <DashboardClient
+      userId={user.id}
       userName={userName}
       avatarUrl={avatarUrl}
-      projects={projects}
-      totalCount={totalCount}
     />
   );
 }
