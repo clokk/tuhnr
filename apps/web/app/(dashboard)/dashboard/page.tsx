@@ -43,9 +43,16 @@ export default async function DashboardPage() {
     console.error("Failed to fetch commits:", error);
   }
 
-  // Transform using shared function and filter out 0-turn commits
+  // Transform using shared function and filter out 0-turn and warmup commits
   const allCommits = ((rawCommits as DbCommitWithRelations[]) || []).map(transformCommitWithRelations);
-  const commits = allCommits.filter((c) => (c.turnCount ?? 0) > 0);
+  const commits = allCommits.filter((c) => {
+    // Filter out 0-turn commits
+    if ((c.turnCount ?? 0) === 0) return false;
+    // Filter out warmup commits (first user message contains "warmup")
+    const firstUserMessage = c.sessions[0]?.turns[0]?.content || "";
+    if (firstUserMessage.toLowerCase().includes("warmup")) return false;
+    return true;
+  });
 
   // Build projects list from filtered commits
   const projectCounts = new Map<string, number>();

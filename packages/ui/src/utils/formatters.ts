@@ -177,3 +177,70 @@ export function formatToolInput(input: Record<string, unknown>): string {
   }
   return JSON.stringify(input, null, 2);
 }
+
+/**
+ * Format a time range for display
+ * Shows: "Jan 15, 2025 2:30 PM – 4:45 PM (2h 15m)"
+ * Or if spanning multiple days: "Jan 15, 2:30 PM – Jan 16, 10:00 AM (19h 30m)"
+ */
+export function formatTimeRange(startedAt: string, closedAt: string): string {
+  const start = new Date(startedAt);
+  const end = new Date(closedAt);
+
+  const sameDay =
+    start.getFullYear() === end.getFullYear() &&
+    start.getMonth() === end.getMonth() &&
+    start.getDate() === end.getDate();
+
+  const timeOptions: Intl.DateTimeFormatOptions = {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  };
+
+  const dateTimeOptions: Intl.DateTimeFormatOptions = {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  };
+
+  const fullDateTimeOptions: Intl.DateTimeFormatOptions = {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  };
+
+  // Calculate duration
+  const durationMs = end.getTime() - start.getTime();
+  const durationMins = Math.floor(durationMs / 60000);
+  const durationStr = formatGap(durationMins);
+
+  if (sameDay) {
+    // Same day: "Jan 15, 2025 2:30 PM – 4:45 PM (2h 15m)"
+    const startStr = start.toLocaleString("en-US", fullDateTimeOptions);
+    const endStr = end.toLocaleString("en-US", timeOptions);
+    return `${startStr} – ${endStr} (${durationStr})`;
+  } else {
+    // Different days: "Jan 15, 2:30 PM – Jan 16, 10:00 AM (19h 30m)"
+    const startStr = start.toLocaleString("en-US", dateTimeOptions);
+    const endStr = end.toLocaleString("en-US", dateTimeOptions);
+    return `${startStr} – ${endStr} (${durationStr})`;
+  }
+}
+
+/**
+ * Generate a preview title from the first user message
+ */
+export function generateTitlePreview(firstUserContent: string | undefined): string {
+  if (!firstUserContent) return "Empty conversation";
+
+  // Truncate to ~50 chars, break at word boundary
+  const content = firstUserContent.trim();
+  if (content.length <= 50) return content;
+  return content.slice(0, 50).replace(/\s+\S*$/, "") + "…";
+}

@@ -55,6 +55,33 @@ export default function DashboardView({
     return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
   });
 
+  // Handle title change for a commit
+  const handleTitleChange = useCallback(async (newTitle: string) => {
+    if (!selectedCommitId) return;
+
+    try {
+      const res = await fetch(`/api/commits/${selectedCommitId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newTitle || null }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to update title");
+      }
+
+      // Update local state
+      setCommits((prev) =>
+        prev.map((c) =>
+          c.id === selectedCommitId ? { ...c, title: newTitle || undefined } : c
+        )
+      );
+    } catch (err) {
+      console.error("Failed to update title:", err);
+      throw err;
+    }
+  }, [selectedCommitId]);
+
   // Fetch commits when project changes - API returns already-transformed CognitiveCommit[]
   const handleSelectProject = useCallback(async (project: string | null) => {
     setSelectedProject(project);
@@ -198,7 +225,7 @@ export default function DashboardView({
         {/* Right Panel - Commit Detail */}
         <div className="flex-1 bg-panel-alt overflow-hidden flex flex-col">
           {selectedCommit ? (
-            <ConversationViewer commit={selectedCommit} />
+            <ConversationViewer commit={selectedCommit} onTitleChange={handleTitleChange} />
           ) : (
             <div className="flex items-center justify-center h-full text-muted">
               {commits.length === 0 ? (

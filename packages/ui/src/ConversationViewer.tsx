@@ -16,6 +16,8 @@ import {
   getGapMinutes,
   formatGap,
   escapeRegex,
+  formatTimeRange,
+  generateTitlePreview,
 } from "./utils/formatters";
 
 export interface ConversationViewerProps {
@@ -543,7 +545,12 @@ export const ConversationViewer = forwardRef<HTMLDivElement, ConversationViewerP
             )}
           </div>
 
-          {/* Row 2: Editable title */}
+          {/* Row 2: Time range */}
+          <div className="mt-2 text-xs text-muted">
+            {formatTimeRange(commit.startedAt, commit.closedAt)}
+          </div>
+
+          {/* Row 3: Editable title */}
           <div className="mt-2">
             {editingTitle && onTitleChange ? (
               <div className="flex items-center gap-2">
@@ -575,14 +582,11 @@ export const ConversationViewer = forwardRef<HTMLDivElement, ConversationViewerP
             ) : (
               <h2
                 onClick={() => onTitleChange && setEditingTitle(true)}
-                className={`text-base font-medium text-primary ${onTitleChange ? "cursor-pointer hover:text-chronicle-blue" : ""} transition-colors`}
+                className={`text-base font-medium ${onTitleChange ? "cursor-pointer hover:text-chronicle-blue" : ""} transition-colors ${commit.title ? "text-primary" : "text-muted italic"}`}
               >
-                {commit.title || (
-                  onTitleChange ? (
-                    <span className="text-muted italic text-sm">Click to add title...</span>
-                  ) : (
-                    <span className="text-muted">Untitled conversation</span>
-                  )
+                {commit.title || generateTitlePreview(commit.sessions[0]?.turns.find(t => t.role === "user")?.content)}
+                {onTitleChange && !commit.title && (
+                  <span className="ml-2 text-xs text-subtle not-italic">(click to edit)</span>
                 )}
               </h2>
             )}
