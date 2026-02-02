@@ -45,10 +45,10 @@ export default async function CommitDetailPage({
     ? getProjectColor(transformedCommit.projectName)
     : null;
 
-  // Flatten all turns from sessions
+  // Flatten all turns from sessions for the conversation view
   const allTurns = transformedCommit.sessions.flatMap((s) => s.turns);
-  // Count only user prompts for the turn count metric
-  const turnCount = allTurns.filter((t) => t.role === "user").length;
+  // Use the turnCount from the transform (which uses stored prompt_count)
+  const turnCount = transformedCommit.turnCount ?? 0;
 
   return (
     <div className="h-full flex flex-col">
