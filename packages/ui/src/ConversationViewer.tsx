@@ -392,7 +392,7 @@ export const ConversationViewer = forwardRef<HTMLDivElement, ConversationViewerP
       }
     };
 
-    const turnCount = commit.sessions.reduce((sum, s) => sum + s.turns.length, 0);
+    const turnCount = commit.turnCount ?? 0;
     const projectColor = commit.projectName ? getProjectColor(commit.projectName) : null;
     const sourceStyle = getSourceStyle(commit.source);
     const currentItem = renderItems[currentItemIndex];
