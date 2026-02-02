@@ -4,6 +4,17 @@ import { NextResponse } from "next/server";
 interface DbCommitMinimal {
   id: string;
   project_name: string | null;
+  sessions?: { turns?: { role: string }[] }[];
+}
+
+/**
+ * Count meaningful turns (user prompts only)
+ */
+function countUserTurns(sessions: { turns?: { role: string }[] }[]): number {
+  return sessions.reduce(
+    (sum, s) => sum + (s.turns?.filter((t) => t.role === "user").length || 0),
+    0
+  );
 }
 
 export async function GET() {
@@ -25,7 +36,7 @@ export async function GET() {
       .select(
         `
         id, project_name,
-        sessions!inner (id, turns (id))
+        sessions!inner (id, turns (id, role))
       `
       )
       .eq("user_id", user.id)
@@ -42,11 +53,9 @@ export async function GET() {
     let totalCount = 0;
 
     for (const commit of rawCommits || []) {
-      // Calculate turn count to filter 0-turn commits
-      const turnCount = (commit as { sessions?: { turns?: { id: string }[] }[] }).sessions?.reduce(
-        (sum, s) => sum + (s.turns?.length || 0),
-        0
-      ) || 0;
+      // Calculate turn count to filter 0-turn commits (user prompts only)
+      const typedCommit = commit as DbCommitMinimal;
+      const turnCount = typedCommit.sessions ? countUserTurns(typedCommit.sessions) : 0;
 
       if (turnCount === 0) continue;
 

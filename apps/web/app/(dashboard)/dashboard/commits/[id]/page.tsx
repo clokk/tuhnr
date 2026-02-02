@@ -47,7 +47,8 @@ export default async function CommitDetailPage({
 
   // Flatten all turns from sessions
   const allTurns = transformedCommit.sessions.flatMap((s) => s.turns);
-  const turnCount = allTurns.length;
+  // Count only user prompts for the turn count metric
+  const turnCount = allTurns.filter((t) => t.role === "user").length;
 
   return (
     <div className="h-full flex flex-col">
