@@ -5,6 +5,7 @@
 import { Hono } from "hono";
 import { loadConfig } from "../../config";
 import { CogCommitDB } from "../../storage/db";
+import { countTurns } from "../../utils/turns";
 
 interface ProjectRouteOptions {
   global?: boolean;
@@ -22,9 +23,9 @@ export function createProjectRoutes(storagePath: string, options: ProjectRouteOp
       const commits = db.commits.getAll();
       const commitCount = commits.length;
 
-      // Count total turns
+      // Count total turns (user prompts only)
       const totalTurns = commits.reduce((sum, commit) => {
-        return sum + commit.sessions.reduce((s, session) => s + session.turns.length, 0);
+        return sum + countTurns(commit.sessions);
       }, 0);
 
       // Get date range

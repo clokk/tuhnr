@@ -5,6 +5,7 @@
 import { Hono } from "hono";
 import { CogCommitDB } from "../../storage/db";
 import type { CognitiveCommit } from "../../models/types";
+import { countTurns } from "../../utils/turns";
 
 interface CommitRouteOptions {
   global?: boolean;
@@ -31,7 +32,7 @@ export function createCommitRoutes(projectPath: string, options: CommitRouteOpti
       // Filter out empty and warmup commits
       commits = commits.filter((commit) => {
         // Filter out 0-turn commits
-        const totalTurns = commit.sessions.reduce((sum, s) => sum + s.turns.length, 0);
+        const totalTurns = countTurns(commit.sessions);
         if (totalTurns === 0) return false;
 
         // Filter out warmup commits (Claude Code internal)
@@ -44,7 +45,7 @@ export function createCommitRoutes(projectPath: string, options: CommitRouteOpti
       // Add turn count for each commit
       const commitsWithTurnCount = commits.map((commit) => ({
         ...commit,
-        turnCount: commit.sessions.reduce((sum, s) => sum + s.turns.length, 0),
+        turnCount: countTurns(commit.sessions),
       }));
 
       return c.json({ commits: commitsWithTurnCount });
