@@ -479,8 +479,7 @@ export interface PublicProfileResult {
  * Fetch a public user profile by username (no auth required)
  * Returns null if user not found or has no public commits
  *
- * Note: This query works around RLS by querying published commits first
- * (which has a public read policy), then fetching the profile separately.
+ * Requires RLS policy on user_profiles allowing reads for users with published commits.
  */
 export async function getPublicProfile(
   client: SupabaseClient,
@@ -489,9 +488,20 @@ export async function getPublicProfile(
 ): Promise<PublicProfileResult | null> {
   const { limit = 20, offset = 0 } = options;
 
-  // Query published commits joined with user_profiles to find the user
-  // This works because published commits have a public read RLS policy
-  const { data: commitsWithProfile, error: commitsError } = await client
+  // Find user by username
+  const { data: profile, error: profileError } = await client
+    .from("user_profiles")
+    .select("id, github_username, github_avatar_url")
+    .eq("github_username", username)
+    .single();
+
+  if (profileError || !profile) {
+    console.error("Profile query error:", profileError);
+    return null;
+  }
+
+  // Fetch public commits for this user
+  const { data: commits, error: commitsError } = await client
     .from("cognitive_commits")
     .select(
       `
@@ -499,61 +509,45 @@ export async function getPublicProfile(
       sessions (
         *,
         turns (*)
-      ),
-      user_profiles!inner (
-        id,
-        github_username,
-        github_avatar_url
       )
     `
     )
-    .eq("user_profiles.github_username", username)
+    .eq("user_id", profile.id)
     .eq("published", true)
     .is("deleted_at", null)
     .order("closed_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
   if (commitsError) {
-    // If the join fails or no results, return null
+    console.error("Commits query error:", commitsError);
     return null;
   }
 
-  // If no published commits for this user, return null
-  if (!commitsWithProfile || commitsWithProfile.length === 0) {
+  // If no public commits, return null
+  if (!commits || commits.length === 0) {
     return null;
   }
 
-  // Extract profile from first commit (all commits have same user)
-  const firstCommit = commitsWithProfile[0] as DbCommitWithRelations & {
-    user_profiles: { id: string; github_username: string; github_avatar_url: string | null };
-  };
-  const userProfile = firstCommit.user_profiles;
-
-  // Get total count of public commits for this user
+  // Get total count of public commits
   const { count: publicCommitCount } = await client
     .from("cognitive_commits")
     .select("id", { count: "exact", head: true })
-    .eq("user_id", userProfile.id)
+    .eq("user_id", profile.id)
     .eq("published", true)
     .is("deleted_at", null);
 
-  // Transform commits (remove the joined profile data)
-  const commits = commitsWithProfile.map((c) => {
-    const { user_profiles, ...commitData } = c as DbCommitWithRelations & { user_profiles: unknown };
-    return transformCommitWithRelations(commitData as DbCommitWithRelations);
-  });
-
-  // Calculate total prompts across fetched commits
-  const totalPrompts = commits.reduce((sum, commit) => {
-    return sum + (commit.sessions?.reduce((s, sess) => s + (sess.turns?.length || 0), 0) || 0);
+  // Calculate total prompts
+  const totalPrompts = (commits as DbCommitWithRelations[]).reduce((sum, commit) => {
+    const sessions = commit.sessions || [];
+    return sum + sessions.reduce((s, sess) => s + (sess.turns?.length || 0), 0);
   }, 0);
 
   return {
     profile: {
-      username: userProfile.github_username,
-      avatarUrl: userProfile.github_avatar_url || undefined,
+      username: profile.github_username,
+      avatarUrl: profile.github_avatar_url || undefined,
     },
-    commits,
+    commits: (commits as DbCommitWithRelations[]).map(transformCommitWithRelations),
     stats: {
       publicCommitCount: publicCommitCount || 0,
       totalPrompts,
