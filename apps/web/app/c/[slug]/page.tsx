@@ -33,9 +33,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         description,
         type: "article",
         siteName: "CogCommit",
+        url: `/c/${slug}`,
       },
       twitter: {
-        card: "summary",
+        card: "summary_large_image",
         title: `${title} | CogCommit`,
         description,
       },
