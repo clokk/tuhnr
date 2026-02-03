@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Header,
   CommitList,
@@ -11,6 +12,7 @@ import {
   Shimmer,
 } from "@cogcommit/ui";
 import { useCommitList, useCommitDetail, useUpdateCommitTitle, usePublishCommit, useUnpublishCommit, useProjects, useUsage } from "@/lib/hooks/useCommits";
+import { createClient } from "@/lib/supabase/client";
 
 interface DashboardClientProps {
   userId: string;
@@ -117,6 +119,16 @@ export default function DashboardClient({
     setSelectedProject(project);
     setSelectedCommitId(null); // Reset selection when changing projects
   }, []);
+
+  // Router for navigation after sign out
+  const router = useRouter();
+
+  // Handle sign out
+  const handleSignOut = useCallback(async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+  }, [router]);
 
   // Update selected commit when commits change
   useEffect(() => {
@@ -235,6 +247,7 @@ export default function DashboardClient({
         homeHref="/"
         user={{ userName, avatarUrl }}
         settingsHref="/dashboard/settings"
+        onSignOut={handleSignOut}
         usage={usage}
         usageLoading={isUsageLoading}
         weeklySummary={weeklySummary}
