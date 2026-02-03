@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ConversationViewer } from "@cogcommit/ui";
 import type { Metadata } from "next";
+import PublicCommitHeader from "./PublicCommitHeader";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -60,50 +61,19 @@ export default async function PublicCommitPage({ params }: Props) {
 
   const { commit, author } = result;
 
+  // Get current user for header
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const currentUser = authUser ? {
+    userName: authUser.user_metadata?.user_name ||
+              authUser.user_metadata?.preferred_username ||
+              authUser.email?.split("@")[0] || "User",
+    avatarUrl: `https://github.com/${authUser.user_metadata?.user_name || authUser.user_metadata?.preferred_username}.png`,
+  } : null;
+
   return (
     <div className="min-h-screen flex flex-col bg-bg">
       {/* Navigation */}
-      <header className="border-b border-border">
-        <nav className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="text-xl font-bold text-primary">
-            CogCommit
-          </Link>
-
-          <div className="flex items-center gap-4">
-            {/* Author info */}
-            <div className="flex items-center gap-2 text-sm text-muted">
-              <span>Shared by</span>
-              <Link
-                href={`/u/${author.username}`}
-                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-              >
-                {author.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={author.avatarUrl}
-                    alt={author.username}
-                    className="w-6 h-6 rounded-full"
-                  />
-                ) : (
-                  <div className="w-6 h-6 rounded-full bg-panel flex items-center justify-center text-xs font-medium text-primary">
-                    {author.username[0]?.toUpperCase() || "U"}
-                  </div>
-                )}
-                <span className="text-primary font-medium hover:text-chronicle-blue transition-colors">
-                  {author.username}
-                </span>
-              </Link>
-            </div>
-
-            <Link
-              href="/login"
-              className="px-4 py-2 bg-chronicle-blue text-black rounded-lg font-medium hover:bg-chronicle-blue/90 transition-colors"
-            >
-              Sign In
-            </Link>
-          </div>
-        </nav>
-      </header>
+      <PublicCommitHeader author={author} user={currentUser} />
 
       {/* Main content */}
       <main className="flex-1 flex flex-col overflow-hidden">

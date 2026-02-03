@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import ProfileCommitCard from "./ProfileCommitCard";
+import PublicPageHeader from "@/components/PublicPageHeader";
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -59,23 +60,19 @@ export default async function PublicProfilePage({ params }: Props) {
 
   const { profile, commits, stats } = result;
 
+  // Get current user for header
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const currentUser = authUser ? {
+    userName: authUser.user_metadata?.user_name ||
+              authUser.user_metadata?.preferred_username ||
+              authUser.email?.split("@")[0] || "User",
+    avatarUrl: `https://github.com/${authUser.user_metadata?.user_name || authUser.user_metadata?.preferred_username}.png`,
+  } : null;
+
   return (
     <div className="min-h-screen flex flex-col bg-bg">
       {/* Navigation */}
-      <header className="border-b border-border">
-        <nav className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="text-xl font-bold text-primary">
-            CogCommit
-          </Link>
-
-          <Link
-            href="/login"
-            className="px-4 py-2 bg-chronicle-blue text-black rounded-lg font-medium hover:bg-chronicle-blue/90 transition-colors"
-          >
-            Sign In
-          </Link>
-        </nav>
-      </header>
+      <PublicPageHeader user={currentUser} />
 
       {/* Profile header */}
       <div className="border-b border-border bg-panel">
