@@ -58,7 +58,7 @@ type RenderItem =
  * - Turn-by-turn conversation display with time gap dividers
  * - Tool call grouping
  * - Search with highlighting and navigation
- * - Keyboard navigation (j/k for prompts, J/K for user-only)
+ * - Keyboard navigation (j/k for prompts)
  * - Font size controls
  * - Export (markdown, plain text, clipboard)
  * - Optional: editable title, delete button
@@ -211,6 +211,24 @@ export const ConversationViewer = forwardRef<HTMLDivElement, ConversationViewerP
       return items;
     }, [commit, searchTerm]);
 
+    // Build array of indices pointing to user prompt items only
+    const userPromptIndices = useMemo(() => {
+      return renderItems
+        .map((item, index) => ({ item, index }))
+        .filter(({ item }) => item.type === "turn" && item.turn.role === "user")
+        .map(({ index }) => index);
+    }, [renderItems]);
+
+    // Track which prompt the user is currently on
+    const currentPromptPosition = useMemo(() => {
+      for (let i = userPromptIndices.length - 1; i >= 0; i--) {
+        if (userPromptIndices[i] <= currentItemIndex) {
+          return i;
+        }
+      }
+      return 0;
+    }, [userPromptIndices, currentItemIndex]);
+
     // Scroll to a specific item
     const scrollToItem = useCallback((index: number) => {
       const ref = itemRefs.current.get(index);
@@ -250,38 +268,20 @@ export const ConversationViewer = forwardRef<HTMLDivElement, ConversationViewerP
       }
     }, [searchTerm, renderItems, scrollToItem]);
 
-    // Navigation handlers
+    // Navigation handlers - navigate by user prompts
     const goToNextItem = useCallback(() => {
-      if (currentItemIndex < renderItems.length - 1) {
-        scrollToItem(currentItemIndex + 1);
+      const nextPromptPos = currentPromptPosition + 1;
+      if (nextPromptPos < userPromptIndices.length) {
+        scrollToItem(userPromptIndices[nextPromptPos]);
       }
-    }, [currentItemIndex, renderItems.length, scrollToItem]);
+    }, [currentPromptPosition, userPromptIndices, scrollToItem]);
 
     const goToPrevItem = useCallback(() => {
-      if (currentItemIndex > 0) {
-        scrollToItem(currentItemIndex - 1);
+      const prevPromptPos = currentPromptPosition - 1;
+      if (prevPromptPos >= 0) {
+        scrollToItem(userPromptIndices[prevPromptPos]);
       }
-    }, [currentItemIndex, scrollToItem]);
-
-    const goToNextUserItem = useCallback(() => {
-      for (let i = currentItemIndex + 1; i < renderItems.length; i++) {
-        const item = renderItems[i];
-        if (item.type === "turn" && item.turn.role === "user") {
-          scrollToItem(i);
-          return;
-        }
-      }
-    }, [currentItemIndex, renderItems, scrollToItem]);
-
-    const goToPrevUserItem = useCallback(() => {
-      for (let i = currentItemIndex - 1; i >= 0; i--) {
-        const item = renderItems[i];
-        if (item.type === "turn" && item.turn.role === "user") {
-          scrollToItem(i);
-          return;
-        }
-      }
-    }, [currentItemIndex, renderItems, scrollToItem]);
+    }, [currentPromptPosition, userPromptIndices, scrollToItem]);
 
     const goToNextMatch = useCallback(() => {
       if (searchMatchIndices.length === 0) return;
@@ -354,12 +354,6 @@ export const ConversationViewer = forwardRef<HTMLDivElement, ConversationViewerP
         } else if (e.key === "k") {
           e.preventDefault();
           goToPrevItem();
-        } else if (e.key === "J") {
-          e.preventDefault();
-          goToNextUserItem();
-        } else if (e.key === "K") {
-          e.preventDefault();
-          goToPrevUserItem();
         } else if (e.key === "/" && !e.metaKey && !e.ctrlKey) {
           e.preventDefault();
           const searchInput = document.querySelector<HTMLInputElement>('[data-search-input]');
@@ -369,7 +363,7 @@ export const ConversationViewer = forwardRef<HTMLDivElement, ConversationViewerP
 
       window.addEventListener("keydown", handleKeyDown);
       return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [goToNextItem, goToPrevItem, goToNextUserItem, goToPrevUserItem]);
+    }, [goToNextItem, goToPrevItem]);
 
     // Title save handler
     const handleSaveTitle = async () => {
@@ -653,20 +647,20 @@ export const ConversationViewer = forwardRef<HTMLDivElement, ConversationViewerP
           <div className="flex items-center gap-2">
             <button
               onClick={goToPrevItem}
-              disabled={currentItemIndex === 0}
+              disabled={currentPromptPosition === 0}
               className="text-muted hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              title="Previous item (k)"
+              title="Previous prompt (k)"
             >
               ◀
             </button>
             <span className="text-sm text-muted font-mono w-32 text-center">
-              {currentItemIndex + 1} / {renderItems.length}
+              {currentPromptPosition + 1} / {userPromptIndices.length}
             </span>
             <button
               onClick={goToNextItem}
-              disabled={currentItemIndex >= renderItems.length - 1}
+              disabled={currentPromptPosition >= userPromptIndices.length - 1}
               className="text-muted hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              title="Next item (j)"
+              title="Next prompt (j)"
             >
               ▶
             </button>
@@ -705,7 +699,7 @@ export const ConversationViewer = forwardRef<HTMLDivElement, ConversationViewerP
           </div>
 
           <span className="text-xs text-subtle">
-            j/k: prompts · J/K: user only · /: search
+            j/k: prompts · /: search
           </span>
         </div>
 
