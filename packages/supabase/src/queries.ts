@@ -491,7 +491,7 @@ export async function getPublicProfile(
   // Find user by username
   const { data: profile, error: profileError } = await client
     .from("user_profiles")
-    .select("id, github_username, github_avatar_url")
+    .select("id, github_username")
     .eq("github_username", username)
     .single();
 
@@ -499,6 +499,9 @@ export async function getPublicProfile(
     console.error("Profile query error:", profileError);
     return null;
   }
+
+  // Construct avatar URL from GitHub username
+  const avatarUrl = `https://github.com/${profile.github_username}.png`;
 
   // Fetch public commits for this user
   const { data: commits, error: commitsError } = await client
@@ -545,7 +548,7 @@ export async function getPublicProfile(
   return {
     profile: {
       username: profile.github_username,
-      avatarUrl: profile.github_avatar_url || undefined,
+      avatarUrl,
     },
     commits: (commits as DbCommitWithRelations[]).map(transformCommitWithRelations),
     stats: {
@@ -599,13 +602,14 @@ export async function getPublicCommit(
   try {
     const { data: profile } = await client
       .from("user_profiles")
-      .select("github_username, github_avatar_url")
+      .select("github_username")
       .eq("id", data.user_id)
       .single();
 
     if (profile) {
       authorUsername = profile.github_username || "Anonymous";
-      authorAvatarUrl = profile.github_avatar_url || undefined;
+      // Construct avatar URL from GitHub username
+      authorAvatarUrl = `https://github.com/${profile.github_username}.png`;
     }
   } catch {
     // RLS blocks access - use defaults
