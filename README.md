@@ -1,12 +1,97 @@
-# CogCommit
+# Tuhnr
 
-> Document your AI-assisted development with cognitive commits.
+> The free, fun way to track your AI coding.
 
-A **cognitive commit** captures the reasoning, exploration, and decisions that led to the code — the intellectual work, not just the transcript.
+**Duolingo for AI-assisted development.** Track your AI coding journey, level up your shipping, and rep your tool.
+
+## What It Does
+
+Parses session logs from Claude Code (and soon Cursor, Codex, OpenCode) to extract "Cognitive Commits" - the work that happens between git commits. Gamified analytics, faction leaderboards, and streaks make it fun to track your progress.
+
+```bash
+tuhnr push      # import + sync to cloud
+tuhnr stats     # see your progress
+tuhnr dashboard # browse locally
+```
+
+## Web Platform
+
+Visit [tuhnr.com](https://tuhnr.com) to browse your synced cognitive commits in the cloud.
+
+## CLI Installation
+
+```bash
+npm install -g tuhnr
+```
+
+## Quick Start
+
+```bash
+# Authenticate with GitHub
+tuhnr login
+
+# Import from Claude Code and push to cloud (one command!)
+tuhnr push
+
+# Open the local dashboard
+tuhnr dashboard
+```
+
+## Commands
+
+### Push (Import + Sync)
+
+```bash
+tuhnr push                # Import from Claude + push to cloud
+tuhnr push --skip-import  # Push existing commits only
+tuhnr push --dry-run      # Preview what would be pushed
+tuhnr push --force        # Re-sync all commits
+tuhnr push --retry        # Retry failed pushes
+```
+
+### Import (Local Only)
+
+```bash
+tuhnr import              # Import all Claude Code projects
+tuhnr import --clear      # Clear existing data first
+tuhnr import --redetect   # Re-run project detection
+```
+
+### Dashboard
+
+```bash
+tuhnr dashboard           # Start local dashboard
+tuhnr dashboard --port 3000
+```
+
+### Cloud Sync
+
+```bash
+tuhnr login               # GitHub OAuth
+tuhnr logout              # Clear tokens
+tuhnr whoami              # Show current user
+tuhnr pull                # Pull from cloud
+tuhnr sync                # Bidirectional sync
+```
+
+### Data Management
+
+```bash
+tuhnr stats                              # View statistics
+tuhnr stats --project myproject --json
+
+tuhnr export --format=json -o backup.json
+tuhnr export --format=markdown
+
+tuhnr search "error handling"
+tuhnr search "API" --project myproject
+
+tuhnr prune --before 30d --dry-run
+```
 
 ## What is a Cognitive Commit?
 
-The **Cognitive Commit** is the new unit of work. It captures everything between git commits:
+The **Cognitive Commit** captures the work between git commits:
 
 | Git | Cognitive Commit |
 |-----|------------------|
@@ -19,124 +104,12 @@ The **Cognitive Commit** is the new unit of work. It captures everything between
 2. **Session end** - work done but not committed
 3. **Explicit close** - user manually marks boundary
 
-## Web Platform
-
-Visit [cogcommit.com](https://cogcommit.com) to browse your synced cognitive commits in the cloud.
-
-## CLI Installation
-
-```bash
-npm install -g cogcommit
-```
-
-## Quick Start
-
-```bash
-# Import all your Claude Code history
-cogcommit import
-
-# Open the dashboard to browse conversations
-cogcommit dashboard
-```
-
-## Cloud Sync
-
-Sync your cognitive commits to the cloud:
-
-```bash
-# Authenticate with GitHub
-cogcommit login
-
-# Push commits to cloud
-cogcommit push
-
-# Pull commits from cloud
-cogcommit pull
-```
-
-### Free Tier Limits
-
-Cloud sync has free tier limits:
-- **250 commits** synced to cloud
-- **50 MB storage**
-
-Local usage is unlimited. When pushing, only the most recent commits sync up to the limit. Warmup sessions and empty commits are automatically filtered out.
-
-```bash
-# See what would be pushed
-cogcommit push --dry-run
-
-# Force re-sync all commits
-cogcommit push --force
-
-# Retry failed pushes
-cogcommit push --retry
-```
-
-## Commands
-
-### Import Sessions
-
-```bash
-# Import all Claude Code projects (default)
-cogcommit import
-
-# Clear existing data before importing
-cogcommit import --clear
-
-# Import from specific Claude project
-cogcommit import --claude-path ~/.claude/projects/-Users-you-project
-```
-
-### Dashboard
-
-```bash
-# Start the local dashboard
-cogcommit dashboard
-
-# Custom port
-cogcommit dashboard --port 3000
-
-# Don't auto-open browser
-cogcommit dashboard --no-open
-```
-
-### Cloud Sync
-
-```bash
-cogcommit login              # GitHub OAuth (opens browser)
-cogcommit logout             # Clear local tokens
-cogcommit whoami             # Show current user
-cogcommit push               # Push pending commits to cloud
-cogcommit pull               # Pull new commits from cloud
-```
-
-### Data Management
-
-```bash
-# View statistics
-cogcommit stats
-cogcommit stats --project myproject --json
-
-# Export commits
-cogcommit export --format=json -o backup.json
-cogcommit export --format=markdown --project myproject
-
-# Search conversations
-cogcommit search "error handling"
-cogcommit search "API" --project myproject --limit 50
-
-# Prune old commits
-cogcommit prune --before 30d --dry-run
-cogcommit prune --before 2024-01-01 --yes
-```
-
 ## Monorepo Structure
 
 ```
-cogcommit/
+tuhnr/
 ├── apps/
-│   ├── cli/                 # CLI tool
+│   ├── cli/                 # CLI tool (npm: tuhnr)
 │   └── web/                 # Next.js web platform
 ├── packages/
 │   ├── types/               # Shared TypeScript types
@@ -155,51 +128,26 @@ cogcommit/
 ### Setup
 
 ```bash
-# Clone the repo
-git clone https://github.com/cogcommit/cogcommit.git
-cd cogcommit
-
-# Install dependencies
+git clone https://github.com/clokk/tuhnr.git
+cd tuhnr
 pnpm install
-
-# Build all packages
 pnpm build
 ```
 
 ### Running Locally
 
 ```bash
-# Run the CLI in development mode
-pnpm dev --filter=cogcommit
+# CLI development
+pnpm dev --filter=tuhnr
 
-# Run the web app
+# Web development
 pnpm dev --filter=web
-
-# Run both dashboards for testing
-# Terminal 1: Web dashboard
-pnpm dev --filter=web
-# Terminal 2: CLI studio
-node apps/cli/dist/index.js dashboard
-```
-
-### Building
-
-```bash
-# Build everything
-pnpm build
-
-# Build only CLI
-pnpm build --filter=cogcommit
-
-# Build only web
-pnpm build --filter=web
 ```
 
 ## Data Storage
 
-Data is stored in:
-- `~/.cogcommit/global/data.db` - SQLite database with commits, sessions, turns
-- `~/.cogcommit/auth.json` - Authentication tokens
+- `~/.tuhnr/global/data.db` - SQLite database
+- `~/.tuhnr/auth.json` - Authentication tokens
 
 ## License
 
