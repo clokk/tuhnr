@@ -48,94 +48,93 @@ const ToolOnlyGroup = forwardRef<HTMLDivElement, ToolOnlyGroupProps>(
     if (allToolCalls.length === 0) return null;
 
     return (
-      <div
-        ref={ref}
-        className="rounded-lg p-3 border-l-2 bg-bg/30 border-border"
-      >
-        {/* Compact header */}
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-xs text-muted">
-            {allToolCalls.length} tool call
-            {allToolCalls.length !== 1 ? "s" : ""}
-          </span>
-        </div>
+      <div ref={ref} className="flex justify-start">
+        <div className="max-w-[80%] rounded-2xl px-4 py-2 bg-panel/50 border border-border/50 rounded-bl-md shadow-[0_1px_3px_rgba(0,0,0,0.15)]">
+          {/* Compact header */}
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[10px] uppercase tracking-wider text-subtle font-mono">
+              {allToolCalls.length} tool call
+              {allToolCalls.length !== 1 ? "s" : ""}
+            </span>
+          </div>
 
-        {/* Tool pills in a wrapping row */}
-        <div className="flex flex-wrap gap-1">
-          {allToolCalls.map((tc) => (
-            <button
-              key={tc.id}
-              title={getToolSummary(tc)}
-              onClick={() =>
-                setExpandedToolId(expandedToolId === tc.id ? null : tc.id)
-              }
-              className={`px-2 py-0.5 text-xs font-mono rounded cursor-pointer transition-colors
-                ${
-                  tc.isError
-                    ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                    : "bg-panel text-muted hover:bg-panel-alt"
+          {/* Tool pills in a wrapping row */}
+          <div className="flex flex-wrap gap-1">
+            {allToolCalls.map((tc) => (
+              <button
+                key={tc.id}
+                title={getToolSummary(tc)}
+                onClick={() =>
+                  setExpandedToolId(expandedToolId === tc.id ? null : tc.id)
                 }
-                ${expandedToolId === tc.id ? "ring-1 ring-chronicle-blue" : ""}`}
-            >
-              {tc.name}
-            </button>
-          ))}
-        </div>
+                className={`px-1.5 py-0.5 text-[10px] font-mono rounded cursor-pointer transition-colors
+                  ${
+                    tc.isError
+                      ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                      : "bg-panel text-muted hover:bg-panel-alt"
+                  }
+                  ${expandedToolId === tc.id ? "ring-1 ring-chronicle-blue" : ""}`}
+              >
+                {tc.name}
+              </button>
+            ))}
+          </div>
 
-        {/* Expanded tool detail */}
-        {expandedToolId && (
-          <div className="mt-2 animate-expand">
-            {allToolCalls
-              .filter((tc) => tc.id === expandedToolId)
-              .map((tc) => (
-                <div
-                  key={tc.id}
-                  className="bg-panel/50 rounded p-3 text-xs font-mono"
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span
-                      className={`font-medium ${
-                        tc.isError ? "text-red-400" : "text-chronicle-green"
-                      }`}
-                    >
-                      {tc.name}
-                    </span>
-                    {tc.isError && (
-                      <span className="px-1.5 py-0.5 text-xs rounded bg-red-400/20 text-red-400">
-                        error
+          {/* Expanded tool detail */}
+          {expandedToolId && (
+            <div className="mt-2 animate-expand">
+              {allToolCalls
+                .filter((tc) => tc.id === expandedToolId)
+                .map((tc) => (
+                  <div
+                    key={tc.id}
+                    className="bg-panel/50 rounded p-3 text-xs font-mono"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span
+                        className={`font-medium ${
+                          tc.isError ? "text-red-400" : "text-chronicle-green"
+                        }`}
+                      >
+                        {tc.name}
                       </span>
+                      {tc.isError && (
+                        <span className="px-1.5 py-0.5 text-xs rounded bg-red-400/20 text-red-400">
+                          error
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Input */}
+                    {tc.input && Object.keys(tc.input).length > 0 && (
+                      <details className="mt-1" open>
+                        <summary className="text-muted cursor-pointer hover:text-muted">
+                          Input
+                        </summary>
+                        <pre className="mt-1 p-2 bg-bg rounded text-muted overflow-x-auto">
+                          {formatToolInput(tc.input)}
+                        </pre>
+                      </details>
+                    )}
+
+                    {/* Result */}
+                    {tc.result && (
+                      <details className="mt-1">
+                        <summary className="text-muted cursor-pointer hover:text-muted">
+                          Result
+                        </summary>
+                        <pre className="mt-1 p-2 bg-bg rounded text-muted overflow-x-auto max-h-40">
+                          {tc.result.length > 500
+                            ? tc.result.substring(0, 500) + "..."
+                            : tc.result}
+                        </pre>
+                      </details>
                     )}
                   </div>
-
-                  {/* Input */}
-                  {tc.input && Object.keys(tc.input).length > 0 && (
-                    <details className="mt-1" open>
-                      <summary className="text-muted cursor-pointer hover:text-muted">
-                        Input
-                      </summary>
-                      <pre className="mt-1 p-2 bg-bg rounded text-muted overflow-x-auto">
-                        {formatToolInput(tc.input)}
-                      </pre>
-                    </details>
-                  )}
-
-                  {/* Result */}
-                  {tc.result && (
-                    <details className="mt-1">
-                      <summary className="text-muted cursor-pointer hover:text-muted">
-                        Result
-                      </summary>
-                      <pre className="mt-1 p-2 bg-bg rounded text-muted overflow-x-auto max-h-40">
-                        {tc.result.length > 500
-                          ? tc.result.substring(0, 500) + "..."
-                          : tc.result}
-                      </pre>
-                    </details>
-                  )}
-                </div>
-              ))}
-          </div>
-        )}
+                ))}
+            </div>
+          )}
+        </div>
       </div>
     );
   }

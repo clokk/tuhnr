@@ -18,6 +18,7 @@ interface TurnViewProps {
   isMatch?: boolean;
   fontSize?: number;
   isHighlighted?: boolean;
+  username?: string;
 }
 
 const COLLAPSE_THRESHOLD = 500;
@@ -59,7 +60,7 @@ function highlightMatches(text: string, term: string): React.ReactNode {
 }
 
 const TurnView = forwardRef<HTMLDivElement, TurnViewProps>(
-  function TurnView({ turn, searchTerm, isMatch, fontSize = 16, isHighlighted }, ref) {
+  function TurnView({ turn, searchTerm, isMatch, fontSize = 16, isHighlighted, username }, ref) {
     const [expanded, setExpanded] = useState(false);
     const [expandedToolId, setExpandedToolId] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
@@ -96,8 +97,8 @@ const TurnView = forwardRef<HTMLDivElement, TurnViewProps>(
         <motion.div
           className={`group max-w-[80%] rounded-2xl px-4 py-3 ${
             isUser
-              ? "bg-chronicle-blue text-black rounded-br-md"
-              : "bg-panel border border-border rounded-bl-md"
+              ? "bg-chronicle-blue text-black rounded-br-md shadow-[0_2px_8px_rgba(61,132,168,0.15)]"
+              : "bg-panel border border-border rounded-bl-md shadow-[0_1px_3px_rgba(0,0,0,0.2)]"
           }`}
           animate={{ boxShadow: isHighlighted ? highlightShadow : noShadow }}
           transition={{
@@ -112,7 +113,7 @@ const TurnView = forwardRef<HTMLDivElement, TurnViewProps>(
                 isUser ? "text-black/70" : "text-muted"
               }`}
             >
-              {isUser ? "You" : formatModelName(turn.model)}
+              {isUser ? (username || "You") : formatModelName(turn.model)}
             </span>
             <span
               className={`text-xs cursor-help ${isUser ? "text-black/50" : "text-subtle"}`}

@@ -38,6 +38,8 @@ export interface ConversationViewerProps {
   onLoadAnalytics?: (commitId: string) => Promise<CommitAnalytics>;
   /** Read-only mode - hides all edit/delete/publish buttons */
   readOnly?: boolean;
+  /** Username to display for user bubbles (defaults to "You") */
+  username?: string;
 }
 
 // Font size settings
@@ -75,7 +77,7 @@ type RenderItem =
  * - Optional: editable title, delete button
  */
 export const ConversationViewer = forwardRef<HTMLDivElement, ConversationViewerProps>(
-  function ConversationViewer({ commit, onTitleChange, onDelete, onPublish, onUnpublish, onLoadAnalytics, readOnly }, ref) {
+  function ConversationViewer({ commit, onTitleChange, onDelete, onPublish, onUnpublish, onLoadAnalytics, readOnly, username }, ref) {
     const [editingTitle, setEditingTitle] = useState(false);
     const [titleValue, setTitleValue] = useState(commit.title || "");
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -911,10 +913,12 @@ export const ConversationViewer = forwardRef<HTMLDivElement, ConversationViewerP
                 return (
                   <React.Fragment key={groupKey}>
                     {item.gapMinutes !== null && item.gapMinutes > 60 && (
-                      <div className="flex items-center gap-4 py-2 text-subtle text-xs">
-                        <div className="flex-1 h-px bg-panel" />
-                        <span>{formatGap(item.gapMinutes)} later</span>
-                        <div className="flex-1 h-px bg-panel" />
+                      <div className="flex items-center gap-6 py-3">
+                        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+                        <span className="text-[10px] uppercase tracking-widest text-subtle/70">
+                          {formatGap(item.gapMinutes)} later
+                        </span>
+                        <div className="flex-1 h-px bg-gradient-to-l from-transparent via-border to-transparent" />
                       </div>
                     )}
                     <ToolOnlyGroup
@@ -947,6 +951,7 @@ export const ConversationViewer = forwardRef<HTMLDivElement, ConversationViewerP
                     isMatch={isMatch}
                     fontSize={fontSize}
                     isHighlighted={idx === highlightedItemIndex}
+                    username={username}
                   />
                 </React.Fragment>
               );
