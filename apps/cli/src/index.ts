@@ -9,6 +9,8 @@ import {
   registerParseCommands,
   registerInitCommand,
   registerWatchCommands,
+  registerStartCommand,
+  registerClaimCommand,
   registerStudioCommand,
   registerImportCommand,
   registerAuthCommands,
@@ -32,6 +34,8 @@ program
 registerParseCommands(program);
 registerInitCommand(program);
 registerWatchCommands(program);
+registerStartCommand(program);
+registerClaimCommand(program);
 registerStudioCommand(program);
 registerImportCommand(program);
 registerAuthCommands(program);

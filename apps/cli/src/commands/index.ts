@@ -6,6 +6,8 @@
 export { registerParseCommands } from "./parse";
 export { registerInitCommand } from "./init";
 export { registerWatchCommands } from "./watch";
+export { registerStartCommand } from "./start";
+export { registerClaimCommand } from "./claim";
 export { registerStudioCommand } from "./studio";
 export { registerImportCommand } from "./import";
 export { registerAuthCommands } from "./auth";

@@ -2,6 +2,55 @@
 
 The command-line interface for Tuhnr - track your AI coding sessions.
 
+## Quick Start
+
+```bash
+tuhnr start           # One command: init + auth + daemon
+```
+
+That's it. Cloud sync is enabled automatically with anonymous auth. Claim your account later:
+
+```bash
+tuhnr claim           # Link to GitHub when ready
+```
+
+## Project-Scoped vs Global
+
+Tuhnr can run in two modes:
+
+### Per-Project (Recommended for live sync)
+
+Each project directory gets its own daemon with automatic background sync:
+
+```bash
+cd ~/my-project
+tuhnr start           # Creates .tuhnr/, starts daemon for this project
+
+cd ~/other-project
+tuhnr start           # Separate daemon for this project
+```
+
+- Creates `.tuhnr/` in the project directory
+- Auto-detects matching Claude project path (`~/.claude/projects/-Users-...`)
+- Daemon runs in background, syncs automatically
+- `tuhnr status` only works from initialized directories
+
+**The daemon is detached** - you can close the terminal and it keeps running. Survives until system restart or `tuhnr stop`.
+
+### Global (Manual sync)
+
+Import and sync all Claude sessions without per-project setup:
+
+```bash
+tuhnr import          # Imports ALL Claude projects to ~/.tuhnr/global/data.db
+tuhnr push            # Syncs everything to cloud
+```
+
+- No per-project initialization needed
+- Uses global database at `~/.tuhnr/global/data.db`
+- No live daemon - run `tuhnr import && tuhnr push` manually
+- Good for one-time backups or if you don't want per-project daemons
+
 ## Development
 
 ### Prerequisites
@@ -51,6 +100,8 @@ src/
 ├── commands/             # Command modules (Commander.js)
 │   ├── parse.ts          # parse, list, info commands
 │   ├── init.ts           # init command
+│   ├── start.ts          # start command (unified entry point)
+│   ├── claim.ts          # claim command (link anonymous → GitHub)
 │   ├── watch.ts          # watch, stop, status, capture
 │   ├── studio.ts         # dashboard command
 │   ├── import.ts         # import command
@@ -63,6 +114,12 @@ src/
 │   ├── schema.ts         # Schema & migrations
 │   └── repositories/     # Data access layer
 ├── sync/                 # Cloud sync (push/pull)
+│   ├── auth.ts           # OAuth + anonymous auth
+│   ├── client.ts         # Supabase client wrapper
+│   ├── push.ts           # Push to cloud
+│   ├── pull.ts           # Pull from cloud
+│   ├── queue.ts          # Background sync queue
+│   └── types.ts          # Sync types (UserProfile, etc.)
 ├── studio/               # Local dashboard (React + Hono)
 │   ├── server.ts         # Hono API server
 │   └── frontend/         # React app (bundled by Vite)
@@ -99,6 +156,65 @@ db.daemonState.getLastActivity();
 db.daemonState.getCurrentCommitId();
 db.daemonState.setFilePosition(filePath, position);
 ```
+
+---
+
+## Anonymous Auth & Frictionless Onboarding
+
+The `start` command provides zero-friction onboarding with anonymous auth:
+
+```bash
+tuhnr start     # init + anonymous auth + daemon in one command
+tuhnr claim     # link anonymous account to GitHub (when ready)
+```
+
+### How It Works
+
+1. **`tuhnr start`** checks if project is initialized, runs init if needed
+2. If not authenticated, creates anonymous Supabase account automatically
+3. Starts daemon with cloud sync enabled
+4. User can sync commits immediately without GitHub OAuth
+
+### Anonymous → Claimed Flow
+
+```
+Anonymous account created → commits synced with anonymous user_id
+                                      ↓
+                            tuhnr claim (GitHub OAuth)
+                                      ↓
+                     Same user_id persists → all data claimed
+```
+
+**Key insight:** Supabase anonymous users get real UUIDs. When claiming via `linkIdentity()`, the user_id stays the same. No data migration needed.
+
+### Key Functions (sync/auth.ts)
+
+| Function | Purpose |
+|----------|---------|
+| `signInAnonymously()` | Creates anonymous account, saves tokens with `isAnonymous: true` |
+| `ensureAuthenticated()` | Returns existing user or creates anonymous one |
+| `claimAccount()` | Opens GitHub OAuth, links identity, updates `isAnonymous: false` |
+
+### UserProfile Type
+
+```typescript
+interface UserProfile {
+  id: string;
+  githubUsername: string;  // "anon-abc12345" for anonymous
+  githubId: string;        // "" for anonymous
+  analyticsOptIn: boolean;
+  isAnonymous?: boolean;   // true for anonymous users
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+### Supabase Dashboard Requirement
+
+Anonymous sign-ins must be enabled:
+- Dashboard → Authentication → Providers → Anonymous Sign-ins → Enable
+
+---
 
 ## Cloud Sync Commands
 
